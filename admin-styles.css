@@ -1,0 +1,724 @@
+/*
+Speed Analyzer WP – Admin Styles
+Version: v0.698
+*/
+
+
+/* apply the same box-shadow to modules 1–7 */
+.wpsa-stat-card, .wpsa-concl-block, .wpsa-module-1 > div:nth-of-type(1) {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* CSS for photo class Animation */
+/* Container stays relative if you need absolute children later */
+.wpsa-stat-cards.photo {
+  position: relative;
+}
+
+/* Base styling + transition on each card */
+.wpsa-stat-cards.photo .wpsa-stat-card {
+  /* your existing backgrounds still apply via inline styles,
+     but add box-shadow & transition here */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition:
+    transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+    box-shadow 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  cursor: pointer; /* if you want it to feel “clickable” */
+}
+
+/* On hover: lift up & deepen the shadow */
+.wpsa-stat-cards.photo .wpsa-stat-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+}
+
+/* If you also want the PSI halves to animate, target them too */
+.wpsa-stat-cards.photo .psi-half {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.wpsa-stat-cards.photo .psi-half:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+}
+
+
+/* Pulse animation */
+@keyframes pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* Tooltip */
+.custom-tooltip {
+  display: inline-block;
+  background: #2271b1;
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  text-align: center;
+  line-height: 18px;
+  font-size: 12px;
+  margin-left: 6px;
+  cursor: pointer;
+  position: relative;
+  font-style: normal;
+}
+.custom-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 24px;
+  left: 0;
+  background: #2271b1;
+  color: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  width: 240px;
+  font-size: 13px;
+  z-index: 9999;
+  white-space: pre-wrap;
+}
+
+/* tooltip flip*/
+
+/* 1) Hide the real “?” character */
+.custom-tooltip {
+  color: transparent;
+  position: relative; /* your existing */
+}
+
+/* 2) Re-draw the “?” as ::before so we can spin it */
+.custom-tooltip::before {
+  content: "?";
+  display: block;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;  height: 100%;
+  text-align: center;
+  line-height: inherit;
+  font-style: normal;
+  color: #fff; /* match your original text color */
+
+  /* 3D setup */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 0.6s ease;
+}
+
+/* 3) Spin only that “?” on hover */
+.custom-tooltip:hover::before {
+  transform: rotateY(360deg);
+}
+
+/* 4) Make sure your tooltip bubble (::after) stays upright */
+.custom-tooltip::after {
+  backface-visibility: hidden;
+}
+
+
+/* Table text */
+.widefat td {
+  font-size: 15px;
+  font-weight: bold;
+  color: #3c434a;
+  text-align: center;
+}
+.widefat th {
+  font-size: 16px;
+  color: #000;
+  text-align: center;
+  line-height: 1.5;
+}
+/* Module 1 table */
+.wpsa-module1-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #ccc;
+  border-radius: 15px 15px 0 0;
+  width: 100%;
+}
+
+/* Module wrappers */
+.wpsa-module-1,
+.wpsa-module-2,
+.wpsa-module-3-4,
+.wpsa-module-5,
+.wpsa-module-6 {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 30px;
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+}
+
+/* New: Module 7 (Conclusion) wrapper styling */
+.wpsa-module-7 {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 30px;
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+ }
+
+/* Conclusion sections and blocks */
+.wpsa-module-7 .wpsa-concl-section {
+  margin-bottom: 50px;
+}
+.wpsa-module-7 .wpsa-concl-block {
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+/* Color coding for conclusion blocks */
+.wpsa-concl-good    { background: #c6f7c3; }
+.wpsa-concl-medium  { background: #fef6b3; }
+.wpsa-concl-bad     { background: #ffdddd; }
+.wpsa-concl-neutral { background: #dddddd; }
+
+
+/* Run button */
+.button-primary.wpsa-button-run {
+  min-height: 40px;
+}
+
+.button-primary {
+ position: relative;
+  overflow: hidden;
+  padding: 0.6em 1.2em;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(#4CAF50, #45A049);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  /*box-shadow: 0 6px rgba(0,0,0,0.2);*/
+  transition:
+    transform 0.1s ease-out,
+    box-shadow 0.1s ease-out,
+    background 0.2s ease;
+}
+
+.button-primary:hover {
+    background: linear-gradient(#5BC26B, #4CAF50);
+}
+
+.button-primary:active {
+ transform: translateY(4px);
+  box-shadow: 0 2px rgba(0,0,0,0.2);
+  background: linear-gradient(#388E3C, #2E7D32);
+}
+
+.button-primary:active::after {
+    animation: ripple 0.6s ease-out;
+}
+
+/* Ripple keyframes */
+@keyframes ripple {
+  to {
+    width: 200%;
+    height: 200%;
+    opacity: 0;
+  }
+}
+
+/* Titles */
+/* subtitle under plugin title */
+#wpsa-header-credit {
+ font-style: italic;
+ color: #777777;
+ font-size: 12px;
+}
+
+.wpsa-header-subtitle {
+  display: block;
+  font-size: 12px;
+  color: #777;
+  margin-top: 4px;       /* a little breathing room */
+}
+
+.wpsa-module-title {
+  font-size: 16px;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* Header */
+.wpsa-header {
+  display: flex;
+  gap: 10px;
+  max-width: 750px;
+  margin: 0 auto 10px;
+}
+
+.wpsa-logo { height: 50px; }
+.wpsa-version { color: #777; font-size: 14px; position: relative; top:5px; }
+
+.wpsa-name {
+  top: 5px;
+  position: relative;
+}
+
+h3 {
+  font-size: 14px;
+}
+
+/* Form */
+#wpsa-speed-test-container,
+#speed-test-form {
+  display: flex;
+   flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
+  max-width: 750px;
+  margin: 0 auto 10px;
+  padding-top:50px;
+}
+
+.wpsa-input-url,
+input[name="test_url"] {
+  flex: 1;
+  padding: 6px;
+}
+
+/* Tested URL line */
+.wpsa-url-display {
+  max-width: 750px;
+  margin: 0 auto 20px;
+  color: #555;
+  font-style: italic;
+  text-align: left;
+  }
+
+#wpsa-tested-url {
+    position: relative;
+    bottom: 50px;
+   pointer-events: none;
+}
+
+#wpsa-daily-remaining {
+  font-style: normal;
+}
+
+/*lock icon*/
+/* form layout */
+.wpsa-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+/* lock-icon wrapper & positioning */
+.wpsa-url-field {
+  position: relative;
+  display: inline-block;
+  flex: 1 1 auto;
+}
+
+.wpsa-url-field .wpsa-input-url {
+  width: 100%;
+  padding-right: 2.4em;
+  box-sizing: border-box;
+}
+
+.wpsa-url-field .wpsa-url-lock {
+  position: absolute;
+  top: 50%;
+  right: 0.6em;
+  transform: translateY(-50%);
+pointer-events: none;
+  font-size: 1.2em;
+  color: #666;
+}
+
+/* ----------------------------------------------------------------------------
+   Lock-icon tooltip (separate from the “?” bubbles)
+   ---------------------------------------------------------------------------- */
+/* re-enable hover *just* on the tooltip wrapper */
+.wpsa-url-field .wpsa-url-lock.wpsa-lock-tooltip {
+  pointer-events: auto;
+}
+
+.wpsa-lock-tooltip {
+  display: inline-block;
+  position: relative;
+  cursor: default; /* or pointer if you like */
+}
+
+/* on hover, show the bubble just like .custom-tooltip does */
+.wpsa-lock-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2271b1;
+  color: #fff;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  z-index: 9999;
+  margin-top: 6px;
+  width: 200px;
+  text-align: center;
+}
+
+
+
+
+/* --------------------------------------- */
+/* Running indicators (hidden by default)  */
+/* --------------------------------------- */
+#running-test,
+#module2-running,
+#module5-running,
+#module7-running {
+  display: none;
+  font-size: 18px;
+  /*font-weight: bold;*/
+  color: #2271b1;
+  animation: pulse 2s infinite;
+  max-width: 750px;
+  margin: 10px auto;
+}
+
+/* --------------------------------------- */
+/* Module 7 wrapper & children             */
+/* hidden until JS reveals them in sequence */
+/* --------------------------------------- */
+#module7-wrapper {
+  display: none;
+}
+#module7-wrapper #module7-running {
+  display: none;
+}
+#module7-wrapper #module7-container {
+  display: none;
+}
+
+
+
+
+/*Module 1*/
+#running-test {
+    top:10px;
+    position: relative;
+}
+
+/* Tabs moved into top-right corner */
+.wpsa-tabs2,
+.wpsa-tabs5 {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  margin-bottom: 0;
+}
+.wpsa-tab2,
+.wpsa-tab5 {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  background: #f1f1f1;
+}
+.wpsa-tab2.active,
+.wpsa-tab5.active {
+  background: #0073aa;
+  color: #fff;
+  border-color: #005a8c;
+}
+
+/* Footnotes */
+.wpsa-footnote,
+#module2-footnote {
+  font-style: italic;
+  margin-top: 10px;
+  color: #555;
+}
+/* hide Module 2 footnote until data arrives */
+#module2-footnote {
+  display: none;
+}
+
+/* Stat cards (all modules) */
+.wpsa-stat-cards {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.wpsa-stat-card {
+  flex: 1;
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+.header {
+  font-size: 16px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.value {
+  font-size: 15px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Modules 3 & 4: force equal halves */
+.wpsa-module-3-4 .wpsa-stat-cards > div {
+  flex: 1;
+}
+
+/* Hide desktop panels & module5 until JS runs */
+#asset-desktop,
+#perf-desktop,
+#wpsa-module5 {
+  display: none;
+}
+
+/* Performance circle */
+.performance-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  margin: 0 auto 10px;
+  border: 5px solid #ccc;
+  background: #f5f5f5;
+  position: relative;
+}
+.perf-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  font-weight: bold;
+}
+
+/* Diagnostics list */
+.diagnostics ul {
+  list-style: none;
+  padding-left: 0;
+}
+.diagnostics li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.diagnostics li .icon {
+  margin-right: 6px;
+}
+.severe .icon { color: #d32f2f; }
+.moderate .icon { color: #f9a825; }
+
+/* Misc */
+.wpsa-notice-limit{
+    margin: 20px auto !important;
+    max-width: 750px;
+    position: relative;
+    top:300px;
+}
+
+.notice-error {
+     max-width: 750px;
+     margin: 0 auto 20px !important;
+     position: relative;
+     top: 300px;
+}
+
+
+h2 { padding-top: 10px; }
+.notice-warning {
+  border-left-color: #d00;
+  background: white;
+  padding: 0;
+  margin: 0;
+  }
+
+h4 {
+    margin-bottom: 5px;
+    }
+
+
+    /* Module 5 */
+.metrics > .wpsa-footnote {
+ padding-bottom: 20px;
+}
+
+#mobile-diag, #desktop-diag {
+    text-decoration: underline;
+}
+
+
+/* Module 6 */
+.wpsa-module-6 .wpsa-stat-cards {
+    padding-bottom: 20px;
+}
+
+#recom {
+    text-decoration: underline;
+}
+
+
+/* Module 7 */
+.wpsa-cta{
+margin-top: 100px !important;
+}
+.wpsa-cta h2{
+font-size: 14px;}
+
+#module7-container h3{
+    text-decoration: underline;
+}
+
+.wpsa-module-6 {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 30px;
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+}
+
+/* Tabs for Module 6 */
+.wpsa-tabs6 {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+.wpsa-tab6 {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  background: #f1f1f1;
+}
+.wpsa-tab6 + .wpsa-tab6 {
+  margin-left: -4px;
+}
+.wpsa-tab6.active {
+  background: #0073aa;
+  color: #fff;
+  border-color: #005a8c;
+}
+
+/* Hide summary until ready */
+#wpsa-module6 {
+  display: none;
+}
+
+/* Running indicator for summary */
+#module6-running {
+  display: none;
+  font-size: 18px;
+  font-weight: bold;
+  color: #2271b1;
+  animation: pulse 2s infinite;
+  max-width: 750px;
+  margin: 10px auto;
+}
+
+/* PSI-metrics combined card */
+.psi-metrics {
+  padding: 0;
+  display: flex;
+}
+.psi-metrics .psi-halves {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+.psi-metrics .psi-half {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.psi-metrics .psi-half + .psi-half {
+  border-left: 1px solid #ccc;
+}
+.psi-metrics .psi-half:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+.psi-metrics .psi-half:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+/* Recommendations list */
+.wpsa-recommendations {
+  list-style: none;
+  padding-left: 0;
+}
+.wpsa-recommendations li {
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+.wpsa-recommendations .icon {
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+/* Prevent layout shift by equalizing summary cards height */
+.wpsa-module-6 .wpsa-stat-cards {
+  align-items: stretch;
+}
+.wpsa-module-6 .wpsa-stat-card {
+  min-height: 120px;
+}
+
+/* PSI circle “N/A” styling */
+.performance-circle.na {
+  border-color: #ccc !important;
+  background: #f0f0f0 !important;
+}
+.performance-circle.na .perf-text {
+  color: #777 !important;
+}
+
+/* FAILED message beside circle */
+.perf-error {
+  margin-top: 8px;
+  color: #d32f2f;
+  font-style: italic;
+}
+
+/* ===== New: Error notice styling inside Module 1 ===== */
+.wpsa-module-1 .notice-warning {
+  background: #fff !important;
+  max-width: 750px;
+  margin: 0 auto 20px;
+  padding: 16px;
+  border: 1px solid #d00;
+  border-left-width: 4px;
+  box-sizing: border-box;
+}
