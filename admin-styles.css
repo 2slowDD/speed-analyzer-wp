@@ -1,7 +1,138 @@
 /*
 Speed Analyzer  – Admin Styles
-Version: v0.699
+admin-styles.css - Version: v0.744
 */
+
+/* Module 1: make "Show response headers" look clickable */
+#wpsa-m1-respheaders-wrap > summary {
+  cursor: pointer;
+}
+
+
+.wpsa-autoload-top10{
+  font-weight: 500;  
+}
+
+.wpsa-inline-details {
+    font-weight: 500;
+}
+
+#wpsa-onjs-mobile {
+  font-weight: 400;  
+}
+
+#wpsa-oncss-mobile {
+  font-weight: 400;  
+}
+
+#wpsa-top10-autoload {
+ font-weight: 400; 
+}
+
+#wpsa-plugin-list {
+ font-weight: 400; 
+ background: beige;
+ border: 1px solid #ddd;
+ border-radius: 8px;
+ max-height: 350px !important;
+ width: 300px;
+}
+
+
+/* Highlight full modules while “Running tests...” */
+.wpsa-module-2.wpsa-hot,
+.wpsa-module-2 .wpsa-hot,
+.wpsa-module-5.wpsa-hot,
+.wpsa-module-5 .wpsa-hot,
+#module7-wrapper.wpsa-hot {
+  background: #FDFFE0 !important;
+  transition: background .15s ease-in-out;
+  border-radius: 15px;
+}
+
+/* keep the inner running rows tinted too, in case wrapper is hidden */
+.wpsa-module-2 .wpsa-module2-running,
+.wpsa-module-5 .wpsa-module5-running,
+.wpsa-module-7 .wpsa-module7-running {
+  background: #FDFFE0 !important;
+}
+
+
+.wpsa-schedule-card{
+    margin-top: 20px;
+}
+
+#wpsa-schedule-batch-running-msg{
+font-size: 22px;   
+color: #2271b1 !important;
+}
+
+.wpsa-schedule-last-list{
+font-weight: 600;
+}
+
+#wpsa-license-form {
+    margin-top: 20px;
+}
+
+/* Load test control (top-right of the Tests panel) */
+#wpsa-test-panel { position: relative; }
+#wpsa-loadtest {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 80%;
+    padding-top: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 400px;
+}
+#wpsa-loadtest .msg { color: #666; }
+
+/* PDF main button wrapper */
+.pdf-main {
+    display: flex;
+    flex-wrap: wrap;          /* counter can go to next line */
+    align-items: center;      /* button + tooltip vertically aligned */
+    justify-content: flex-end;/* push content to the right side */
+    gap: 6px;
+    padding-top: 10px;
+    padding-left: 0;
+    width: 100%;
+    text-align: right;        /* override inline left-align */
+    left: 128px;
+    position: relative;
+}
+
+#report-button-tests:hover {
+  background: #c0392b;
+}
+
+
+/* Counter on its own line, right under the button, right-aligned */
+.pdf-main #wpsa-pdf-counter-tests {
+    flex-basis: 100%;     /* full row in this flex container */
+    margin-top: 2px;
+    text-align: right;
+    display: block;
+    right: 30px;
+    position: relative;
+}
+
+#wpsa-pdf-counter-tests strong {
+    margin-left: 5px;
+}
+
+/* Tooltip stays aligned with the button baseline */
+.pdf-main .custom-tooltip {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+}
+
+.pdf-daily-main{
+justify-content: flex-end;}
+
 
 
 /* apply the same box-shadow to modules 1–7 */
@@ -82,6 +213,68 @@ Version: v0.699
   white-space: pre-wrap;
 }
 
+/* CWV status coloring */
+/* CWV status hooks (choose either class-based or data-attr based) */
+
+/* class-based */
+.wpsa-cwv-assessment-row .wpsa-cwv-status.is-cwv-unknown { color: #777; }
+.wpsa-cwv-assessment-row .wpsa-cwv-status.is-cwv-passed  { color: #2e7d32; font-weight: 700; }
+.wpsa-cwv-assessment-row .wpsa-cwv-status.is-cwv-failed  { color: #c62828; font-weight: 700; }
+
+/* data-attr based (same effect) */
+.wpsa-cwv-assessment-row .wpsa-cwv-status[data-cwv-status="unknown"] { color: #777; }
+.wpsa-cwv-assessment-row .wpsa-cwv-status[data-cwv-status="passed"]  { color: #2e7d32; font-weight: 700; }
+.wpsa-cwv-assessment-row .wpsa-cwv-status[data-cwv-status="failed"]  { color: #c62828; font-weight: 700; }
+
+/* CWV tooltip must sit above the PSI score circle */
+.wpsa-cwv-assessment-row {
+  position: relative;
+  z-index: 50;
+}
+
+.wpsa-cwv-assessment-row .custom-tooltip {
+  position: relative;
+  z-index: 9999;
+}
+
+/* IMPORTANT: bubble is usually on pseudo-elements */
+.wpsa-cwv-assessment-row .custom-tooltip::before,
+.wpsa-cwv-assessment-row .custom-tooltip::after {
+  z-index: 99999;
+}
+
+
+/* Keep the PDF button tooltip inside the viewport (shift it left) */
+.pdf-main .custom-tooltip::before,
+.pdf-main .custom-tooltip:hover::before {
+    left: auto;              /* cancel generic centering */
+    right: 0;                /* anchor bubble to the right edge */
+    transform: translateX(0);/* no -50% shift */
+    max-width: 260px;        /* optional safety */
+}
+
+/* Adjust the little arrow if you use ::after for it */
+.pdf-main .custom-tooltip::after,
+.pdf-main .custom-tooltip:hover::after {
+    left: auto;
+    right: 10px;             /* small inset from the right edge */
+}
+
+#wpsa-daily-remaining .custom-tooltip::before,
+#wpsa-daily-remaining .custom-tooltip:hover::before {
+    left: auto;             
+    right: 0;               
+    transform: translateX(0);
+    max-width: 260px;        
+}
+
+#wpsa-daily-remaining .custom-tooltip::after,
+#wpsa-daily-remaining .custom-tooltip:hover::after {
+    left: auto;
+    right: 10px;             
+}
+
+
 /* tooltip flip*/
 
 /* 1) Hide the real “?” character */
@@ -118,6 +311,51 @@ Version: v0.699
   backface-visibility: hidden;
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Keep the "Load test" tooltip on-screen (near right edge).
+   We flip it to the LEFT of the icon, cap width, and raise z-index.
+   ────────────────────────────────────────────────────────────── */
+#wpsa-loadtest-tooltip.custom-tooltip::after {
+  /* place bubble to the left of the icon */
+  left: auto;
+  right: 100%;
+  top: 50%;
+  transform: translate(-8px, -50%);
+
+  /* keep it readable and inside the viewport */
+  max-width: min(38rem, calc(100vw - 40px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+
+  /* ensure it overlays nearby UI */
+  z-index: 100000;
+}
+
+#wpsa-loadtest-tooltip.custom-tooltip::before {
+  /* arrow on the left side, pointing to the icon */
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+}
+
+/* Optional: on very narrow screens, drop it BELOW the icon instead of left */
+@media (max-width: 480px) {
+  #wpsa-loadtest-tooltip.custom-tooltip::after {
+    right: auto;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translate(-50%, 0);
+  }
+  #wpsa-loadtest-tooltip.custom-tooltip::before {
+    right: auto;
+    left: 50%;
+    top: calc(100% + 2px);
+    transform: translate(-50%, 0) rotate(45deg);
+  }
+}
+
+
 
 /* Table text */
 .widefat td {
@@ -139,6 +377,13 @@ Version: v0.699
   border: 1px solid #ccc;
   border-radius: 15px 15px 0 0;
   width: 100%;
+}
+
+/*Module 1 and 2 z-index*/
+.wpsa-module-1,
+.wpsa-module-2,
+.wpsa-module-3-4 {
+    z-index: 60;
 }
 
 /* Module wrappers */
@@ -169,6 +414,7 @@ Version: v0.699
   margin-left: auto;
   margin-right: auto;
   position: relative;
+  padding-bottom: 0px;
  }
 
 /* Conclusion sections and blocks */
@@ -184,12 +430,14 @@ Version: v0.699
 .wpsa-concl-good    { background: #c6f7c3; }
 .wpsa-concl-medium  { background: #fef6b3; }
 .wpsa-concl-bad     { background: #ffdddd; }
-.wpsa-concl-neutral { background: #dddddd; }
+.wpsa-concl-neutral { background: #eeeeee; }
 
 
 /* Run button */
 .button-primary.wpsa-button-run {
   min-height: 40px;
+  box-shadow: 0 8px 20px grey,
+        0 3px 8px rgba(0, 0, 0, 0.05);
 }
 
 .button-primary {
@@ -239,35 +487,58 @@ Version: v0.699
  font-style: italic;
  color: #777777;
  font-size: 12px;
+ font-weight: 400;
 }
 
 .wpsa-header-subtitle {
   display: block;
   font-size: 12px;
   color: #777;
-  margin-top: 4px;       /* a little breathing room */
+  margin-top: 4px; 
+  font-weight: 400;
+}
+
+#test-results .wpsa-module-title {
+      font-size: 19px;
+}
+      
+#test-results{
+   margin-top: -80px;      
 }
 
 .wpsa-module-title {
-  font-size: 16px;
+  font-size: 22px !important;
   margin-top: 0;
   margin-bottom: 20px;
+  font-weight: 400;
 }
 
 /* Header */
+.header-brand {
+  /* position: relative;
+  right: 40%;*/
+    padding-bottom: 35px !important;
+}
+
+
+
+
 .wpsa-header {
   display: flex;
   gap: 10px;
-  max-width: 750px;
+  /*max-width: 750px;*/
   margin: 0 auto 10px;
+  justify-content: left;
 }
 
 .wpsa-logo { height: 50px; }
-.wpsa-version { color: #777; font-size: 14px; position: relative; top:5px; }
+.wpsa-version { color: #777; font-size: 14px; position: relative; top:5px; font-weight: 400; }
 
 .wpsa-name {
   top: 5px;
   position: relative;
+  font-size: 23px;
+  font-weight: 400;
 }
 
 h3 {
@@ -304,8 +575,8 @@ input[name="test_url"] {
 
 #wpsa-tested-url {
     position: relative;
-    bottom: 50px;
-   pointer-events: none;
+    bottom: 200px;
+   /*pointer-events: none;*/
 }
 
 #wpsa-daily-remaining {
@@ -356,6 +627,11 @@ pointer-events: none;
   display: inline-block;
   position: relative;
   cursor: default; /* or pointer if you like */
+  z-index: 101;
+}
+
+#wpsa-schedule-url-list .wpsa-lock-tooltip {
+ display: contents;   
 }
 
 /* on hover, show the bubble just like .custom-tooltip does */
@@ -400,6 +676,7 @@ pointer-events: none;
 /* Module 7 wrapper & children             */
 /* hidden until JS reveals them in sequence */
 /* --------------------------------------- */
+
 #module7-wrapper {
   display: none;
 }
@@ -415,7 +692,7 @@ pointer-events: none;
 
 /*Module 1*/
 #running-test {
-    top:10px;
+    margin-top: -80px;
     position: relative;
 }
 
@@ -463,7 +740,7 @@ pointer-events: none;
 }
 .wpsa-stat-card {
   flex: 1;
-  padding: 16px;
+  padding: 12px 14px;               /* a touch tighter so 79px fits nicely */
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -471,7 +748,9 @@ pointer-events: none;
   justify-content: center;
   border: 1px solid #ccc;
   box-sizing: border-box;
+  min-height: 79px;                 /* ← normalize card height */
 }
+
 .header {
   font-size: 16px;
   margin-bottom: 8px;
@@ -501,10 +780,13 @@ pointer-events: none;
   height: 100px;
   border-radius: 50%;
   margin: 0 auto 10px;
-  border: 5px solid #ccc;
+  border: 0;                 /* wrapper has no ring, SVG draws it */
   background: #f5f5f5;
   position: relative;
+  box-shadow: 0 4px 10px grey,
+        0 3px 4px rgba(0, 0, 0, 0.05);
 }
+
 .perf-text {
   position: absolute;
   top: 50%;
@@ -514,7 +796,49 @@ pointer-events: none;
   font-weight: bold;
 }
 
+
 /* Diagnostics list */
+
+span.value.top5 {
+    font-weight: 400;
+    font-size: 12px;
+   color: #c00 !important; 
+}
+
+/* --- PSI-style badges (prefixed) --- */
+.wpsa-psi-badge { --s: 11px; display:inline-block; width:var(--s); height:var(--s); margin-right:.55rem; position:relative; top:2px; }
+
+.wpsa-psi-badge--fail {           /* red triangle */
+  width:0; height:0;
+  border-left: calc(var(--s)/2) solid transparent;
+  border-right: calc(var(--s)/2) solid transparent;
+  border-bottom: var(--s) solid #ff4e42;          /* PSI red */
+}
+
+.wpsa-psi-badge--average {        /* amber square */
+  background:#ffa400;              /* PSI amber */
+  border-radius:2px;
+}
+
+.wpsa-psi-badge--pass {           /* green circle */
+  background:#0cce6b;              /* PSI green */
+  border-radius:999px;
+}
+
+.wpsa-psi-badge--info {           /* neutral dot (for NA) */
+  background:#9aa0a6;              /* PSI gray */
+  border-radius:999px;
+}
+
+/* list cosmetics to match PSI spacing a bit closer */
+.wpsa-module-5 .diagnostics { list-style:none; padding-left:0; margin:.5rem 0 0; }
+.wpsa-module-5 .diagnostics li {
+  display:flex; align-items:baseline; margin:.25rem 0; line-height:1.35;
+}
+.wpsa-module-5 .diagnostics .title { font-weight:400; }
+.wpsa-module-5 .diagnostics .value { color:#5f6368; margin-left:.25rem; white-space:nowrap; }
+
+
 .diagnostics ul {
   list-style: none;
   padding-left: 0;
@@ -531,6 +855,10 @@ pointer-events: none;
 .moderate .icon { color: #f9a825; }
 
 /* Misc */
+.notice.notice-info {
+  display:none;
+}
+
 .wpsa-notice-limit{
     margin: 20px auto !important;
     max-width: 750px;
@@ -542,9 +870,22 @@ pointer-events: none;
      max-width: 750px;
      margin: 0 auto 20px !important;
      position: relative;
-     top: 300px;
+    top: 300px;
 }
 
+.notice-error2 {
+     max-width: 750px;
+     margin: 0 auto 20px !important;
+     position: relative;
+     top: -50px;
+     /*color: #d32f2f;*/
+     border: 1px solid #b32d2e;
+     border-left-width: 4px;
+}
+
+.notice-error3 {
+top: 220px;
+}
 
 h2 { padding-top: 10px; }
 .notice-warning {
@@ -559,7 +900,152 @@ h4 {
     }
 
 
-    /* Module 5 */
+/* Module 5 */
+/*CWV*/
+/* Module 5 — make "Show field metrics" look like the other "Show..." toggles */
+.wp-core-ui .button-link.wpsa-psi-metrics-toggle,
+.wp-core-ui .button-link.wpsa-psi-metrics-toggle:hover {
+  color: #444;
+  text-decoration: none;
+}
+
+.wp-core-ui .button-link.wpsa-psi-metrics-toggle {
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Larger caret, match <summary> feel */
+.wp-core-ui .button-link.wpsa-psi-metrics-toggle::before {
+  content: "▸";
+  display: inline-block;
+  font-size: 18px;
+  line-height: 1;
+  margin-right: 4px;
+  transform: translateY(1px);
+}
+
+.wp-core-ui .button-link.wpsa-psi-metrics-toggle[aria-expanded="true"]::before {
+  content: "▾";
+}
+
+
+.wpsa-psi-expanded-metrics {
+  margin: 10px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.wpsa-psi-metric {
+  padding: 10px 0 14px;
+}
+
+.wpsa-psi-metric-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed;
+}
+
+.wpsa-psi-metric-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.wpsa-psi-metric-value {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.wpsa-psi-dist-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.wpsa-psi-dist-label {
+  opacity: 0.95;
+}
+
+.wpsa-psi-dist-pct {
+  font-weight: 600;
+}
+
+/* Grades (value + segment wrapper can both carry these) */
+.wpsa-psi-expanded-metrics .is-good { color: #1a7f37; }
+.wpsa-psi-expanded-metrics .is-ni   { color: #de7f37; }
+.wpsa-psi-expanded-metrics .is-poor { color: #d1242f; }
+.wpsa-psi-expanded-metrics .is-unknown { color: #6a6a6a; }
+
+/* Distribution line colors */
+.wpsa-psi-dist-good { color: #1a7f37; }
+.wpsa-psi-dist-ni   { color: #de7f37; }
+.wpsa-psi-dist-poor { color: #d1242f; }
+/* End of CWV styles*/
+
+
+/* Module 5: Performance & Diagnostics header row */
+.wpsa-perf-header-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;          /* space between circle and screenshot */
+  flex-wrap: wrap;    /* on very small screens screenshot can wrap below */
+}
+
+.wpsa-psi-screenshot-box {
+    max-height: 250px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    left: -50px;
+    position: relative;
+    border: 1px solid grey;
+    padding: 4px;
+    border-radius: 3px;
+    background: #fff;
+    box-shadow: 0 8px 20px grey,
+        0 3px 8px rgba(0, 0, 0, 0.05);
+    
+}
+
+.wpsa-psi-screenshot-img {
+  max-height: 250px;
+  width: auto;
+  display: block;
+}
+
+
+
+.inp-badge{
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  vertical-align: middle;
+  margin-left: 6px;
+  text-transform: lowercase;
+}
+    
+    
+    
+.wpsa-stat-card .custom-tooltip {
+    bottom: 1px;
+}
+    
+.wpsa-stat-card.wpsa-card-fcp {
+    min-width: 45%;
+}    
+
+.wpsa-stat-card.wpsa-card-lcp  {
+    min-width: 45%;
+}      
+    
 .metrics > .wpsa-footnote {
  padding-bottom: 20px;
 }
@@ -570,6 +1056,86 @@ h4 {
 
 
 /* Module 6 */
+/* Module 6 – two-column Recommendations */
+#wpsa-module6 #summary-recommendations{
+  display:flex;
+  gap:24px;
+  align-items:flex-start;
+  margin-top:8px;
+}
+#wpsa-module6 #summary-recommendations .recom-col{
+  list-style:none;
+  padding-left:0;
+  margin:0;
+  width:calc(50% - 12px); /* two equal columns */
+}
+#wpsa-module6 #summary-recommendations li{
+  margin:8px 0;
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  line-height:1.35;
+}
+#wpsa-module6 #summary-recommendations li .icon{
+  margin-top:2px; /* nice vertical alignment */
+}
+
+/* On very narrow screens, stack columns */
+@media (max-width: 640px){
+  #wpsa-module6 #summary-recommendations{ flex-direction:column; }
+  #wpsa-module6 #summary-recommendations .recom-col{ width:100%; }
+}
+
+/* Module 6 – recommendation list bulbs (HTML-driven, no pseudo) */
+#wpsa-module6 #summary-recommendations .recom-col{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#wpsa-module6 #summary-recommendations .recom-col li{
+  /* keep the flex layout you set earlier */
+  margin: 8px 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.35;
+  /* reset any legacy positioning/padding used for ::before icons */
+  position: static;
+  padding-left: 0;
+}
+
+/* kill any legacy markers/pseudo content to prevent double bulbs */
+
+#wpsa-module6 #summary-recommendations .recom-col li::before,
+#wpsa-module6 #summary-recommendations .recom-col li::marker{
+  content: none !important;
+}
+
+/* style the real bulb span inserted by JS: <span class="rec-icon">💡</span> */
+#wpsa-module6 #summary-recommendations .rec-icon{
+  display: inline-block;
+  flex: 0 0 auto;
+  line-height: 1;
+  margin-top: 2px;      /* subtle vertical alignment */
+  min-width: 16px;      /* keeps a consistent “gutter” for the bulb */
+  text-align: center;
+  visibility: visible;
+}
+
+.psi-half.cls {
+max-width: 69px;
+}
+
+.psi-half.inp {
+   min-width: 69px; 
+}
+
+#summary-45-db{
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .wpsa-module-6 .wpsa-stat-cards {
     padding-bottom: 20px;
 }
@@ -578,10 +1144,58 @@ h4 {
     text-decoration: underline;
 }
 
+/* Exactly 5 cards per row in Module 6 on >=701px */
+@media (min-width: 701px) {
+  .wpsa-module-6 .wpsa-stat-cards {
+    flex-wrap: wrap;
+    gap: 15px; /* already present, here for clarity */
+  }
+  .wpsa-module-6 .wpsa-stat-cards .wpsa-stat-card {
+    flex: 0 0 calc((100% - 4*15px) / 5);
+    max-width: calc((100% - 4*15px) / 5);
+  }
+}
+
+/* On small screens, stack them (you already have similar rules) */
+@media (max-width: 700px) {
+  .wpsa-module-6 .wpsa-stat-cards .wpsa-stat-card {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
+/* Two independent columns inside the collapsible block */
+.wpsa-diag-two-col {
+  display: grid;
+  grid-template-columns: 50% 50%;
+  gap: 24px;
+}
+@media (max-width: 700px){
+  .wpsa-diag-two-col { grid-template-columns: 1fr; }
+}
+
+.wpsa-diag-col-title { margin: 0 0 6px; }
+
+/* Style insights the same as diagnostics (for now) */
+.wpsa-module-5 .insights { list-style:none; padding-left:0; margin:.5rem 0 0; }
+.wpsa-module-5 .insights li {
+  display:flex; align-items:baseline; margin:.25rem 0; line-height:1.35;
+}
+.wpsa-module-5 .insights .title { font-weight:400; }
+.wpsa-module-5 .insights .value { color:#5f6368; margin-left:.25rem; white-space:nowrap; }
+
+/* Reuse the PSI badges for insights too */
+.wpsa-module-5 .insights .wpsa-psi-badge { --s: 11px; display:inline-block; margin-right:.55rem; position:relative; top:2px; }
+
+
+
 
 /* Module 7 */
+
 .wpsa-cta{
-margin-top: 100px !important;
+margin-top: 50px;
+box-shadow: 0 8px 20px grey,
+        0 3px 8px rgba(0, 0, 0, 0.05);
 }
 .wpsa-cta h2{
 font-size: 14px;}
@@ -603,6 +1217,8 @@ font-size: 14px;}
 }
 
 /* Tabs for Module 6 */
+/*.wpsa-module-6 .wpsa-summary-45-row { justify-content: center; }*/
+
 .wpsa-tabs6 {
   position: absolute;
   top: 20px;
@@ -696,6 +1312,43 @@ font-size: 14px;}
   min-height: 120px;
 }
 
+/* Center the 4.5 row (Active plugins / PHP / DB) and avoid stretching cards full width */
+.wpsa-module-6 .wpsa-summary-45-row {
+  justify-content: center;          /* horizontally center the row */
+}
+
+
+/*1.16.2. start */
+/* Module 6 second row should fill the width with 5 cards */
+.wpsa-module-6 .wpsa-summary-45-row {
+  justify-content: flex-start;      /* don’t center; let them fill the row */
+}
+
+/* Let each card grow evenly (5 will stretch across the 750px container) */
+.wpsa-module-6 .wpsa-summary-45-row .wpsa-stat-card {
+  flex: 1 1 0;                       /* fluid columns */
+  min-width: 120px;                  /* allows wrapping on smaller screens */
+}
+
+/* Keep small-screen behavior */
+@media (max-width: 700px) {
+  .wpsa-module-6 .wpsa-summary-45-row .wpsa-stat-card {
+    flex: 1 1 100%;
+  }
+}
+/*1.16.2. end + commented out the next few lines */
+/*
+.wpsa-module-6 .wpsa-summary-45-row .wpsa-stat-card {
+  flex: 0 0 140px;                  // keep card width compact so centering is visible 
+}
+@media (max-width: 700px) {
+  .wpsa-module-6 .wpsa-summary-45-row .wpsa-stat-card {
+    flex: 1 1 100%;                 // stack nicely on small screens 
+  }
+}
+*/
+
+
 /* PSI circle “N/A” styling */
 .performance-circle.na {
   border-color: #ccc !important;
@@ -721,4 +1374,777 @@ font-size: 14px;}
   border: 1px solid #d00;
   border-left-width: 4px;
   box-sizing: border-box;
+}
+
+/* Sidebar navigation */
+.wpsa-layout {
+  display: flex;
+  margin-top: 32px;
+}
+
+.wpsa-sidebar-nav {
+ position: absolute;
+    top: 500px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 220px;
+    background: beige;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 50;
+    font-size: 14px;
+  
+}
+
+/* Hide the left sidebar on smaller screens (below 768px) */
+@media (max-width: 767px) {
+  .wpsa-sidebar-nav {
+    display: none;
+  }
+}
+
+/* With flex:1 on the main column, no extra margin-left is needed */
+.wpsa-layout .wpsa-main-content {
+  flex: 1;
+}
+
+.wpsa-nav-tile {
+  padding: 12px 20px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  border-left: 5px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s, border-left-color 0.2s;
+}
+
+.wpsa-nav-tile:hover {
+  background: #eaf1f9;
+}
+
+.wpsa-nav-tile.active {
+  background: #0073aa;
+  color: #fff;
+  border-left-color: #ff6b35;
+  border-radius: 5px;
+}
+
+.wpsa-nav-tile i {
+  font-size: 16px;
+}
+
+/* Allow page content to be shifted */
+.wpsa-has-sidebar {
+  margin-left: 230px;
+}
+
+/* Panels – hidden by default unless activated */
+.wpsa-panel {
+  display: none;
+}
+.wpsa-panel.active {
+  display: block;
+}
+
+/* =============================================================================
+   Speed Analyzer – Right-side “Ratings & Support” Feedback Panel
+   ============================================================================= */
+
+/* Container for the entire feedback box */
+.wpsa-feedback-panel {
+  position: absolute;
+  top: 500px;             
+  right: 10px;             /* 30px from the right edge of the content area */
+  width: 220px;
+  background: beige;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  z-index: 50;             /* sit above the main content */
+  font-size: 14px;
+}
+
+/* Each internal section (Ratings vs. Support) */
+.wpsa-feedback-panel .wpsa-feedback-section {
+  margin-bottom: 20px;
+}
+
+.wpsa-feedback-panel .wpsa-feedback-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Section headings */
+.wpsa-feedback-panel h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #333333;
+}
+
+/* Star icons row (five stars) */
+.wpsa-feedback-panel .wpsa-stars {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 0 8px;
+}
+.wpsa-feedback-panel .wpsa-stars .dashicons-star-filled {
+  color: #e26f56;
+  font-size: 16px;
+  margin-right: 2px;
+}
+.wpsa-feedback-panel .wpsa-stars .dashicons-star-filled:last-child {
+  margin-right: 0;
+}
+
+/* Paragraph text */
+.wpsa-feedback-panel p {
+  margin: 0 0 12px;
+  line-height: 1.4;
+  color: #555555;
+}
+
+/* Buttons (“Leave a rating” / “Get Support”) */
+.wpsa-feedback-panel .wpsa-button-feedback {
+  display: inline-block;
+  text-decoration: none;
+  background: #0073aa;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+.wpsa-feedback-panel .wpsa-button-feedback:hover {
+  background: #005f8d;
+}
+
+/* Hide the entire panel on smaller screens */
+@media (max-width: 767px) {
+  .wpsa-feedback-panel {
+    display: none;
+  }
+}
+
+/* PDF Report Button */
+.wpsa-pdf-button-wrap {
+  text-align: center;
+  margin: 30px 0;
+}
+
+.wpsa-button-pdf {
+  position: relative;
+  overflow: hidden;
+  padding: 0.6em 1.4em;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: #2271b1;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin: 70px;
+}
+
+.wpsa-button-pdf:hover {
+  background: #c0392b;
+}
+
+/* Shine effect */
+.wpsa-button-pdf::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: skewX(-20deg);
+}
+
+.wpsa-button-pdf:hover::before {
+  animation: shine 0.8s forwards;
+}
+
+@keyframes shine {
+  100% {
+    left: 200%;
+  }
+}
+
+.button-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: skewX(-20deg);
+}
+
+.button-primary:hover::before {
+  animation: shine 0.8s forwards;
+}
+
+@keyframes shine {
+  100% {
+    left: 200%;
+  }
+}
+
+
+/*License*/ 
+
+/* License notices – keep them above tooltips */
+.wpsa-license-error-headline,
+.wpsa-license-success-headline {
+    position: relative;
+    z-index: 2000;      /* higher than tooltip's 1001 */
+    margin-top: 0;
+    margin-bottom: 12px;
+     background: #fff;
+}
+
+
+
+form#wpsa-license-form{
+    max-width: fit-content;
+      background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 100;
+}
+
+/*
+#wpsa-license-panel .wpsa-header{
+    position: relative;
+    right: 35%;
+    top: -50px;
+}
+*/
+
+ #wpsa-license-panel {
+   left: 25%;
+   position: relative;
+  top: 50px;
+   z-index: 100;
+    }
+    
+  
+/* Make our nav‐tiles look like buttons/blocks, not links */
+.wpsa-nav-tile {
+  text-decoration: none;
+}
+.wpsa-nav-tile:hover {
+  text-decoration: none;
+}
+
+/* license‐panel inline messages */
+.wpsa-license-error-headline {
+  color:    #d32f2f;
+  font-size: 16px;
+  margin-bottom: 1em;
+  position: absolute;
+  top: 200px;
+  left: 250px;
+}
+.wpsa-license-success-headline {
+  color:    #388e3c;
+  font-size: 16px;
+  margin-bottom: 1em;
+  position: absolute;
+  top: 200px;
+  left: 250px;
+}
+
+/* Grey-out NA cards even if JS previously set an inline background */
+
+.wpsa-stat-card.is-na { background: #eee; }
+
+/* optional: style for the warning we prepend */
+
+.wpsa-notice-failed { margin: 10px 0 15px; }
+
+/* neutral look for N/A cards */
+
+.wpsa-stat-card.is-na,
+.wpsa-card-lcp.is-na,
+.wpsa-card-fcp.is-na {
+  background: #eeeeee;
+}
+
+/* 4.5 full-width under Modules 3/4 */
+.wpsa-module-3-4 .wpsa-module-45-title{
+  margin:16px 0 10px;
+}
+
+.wpsa-module-3-4 .wpsa-module45-cards{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:14px;
+}
+
+/* Match the existing card look */
+.wpsa-module-3-4 .wpsa-meta-card{border-radius:8px;padding:16px;background:#dddddd;}
+/*.wpsa-module-3-4 .wpsa-meta-card .header{font-weight:600;opacity:.9;}*/
+/*.wpsa-module-3-4 .wpsa-meta-card .value{font-weight:700;font-size:18px;margin-top:6px;}*/
+.wpsa-module-3-4 .wpsa-meta-card .subvalue{font-weight:700;font-size:15px;}
+
+/* Severity colors */
+.wpsa-module-3-4 .wpsa-meta-card.is-green{background:#c6f7c3;}
+.wpsa-module-3-4 .wpsa-meta-card.is-amber{background:#fff3cd;}
+.wpsa-module-3-4 .wpsa-meta-card.is-red{background:#ffdddd;}
+
+/* Responsive */
+@media (max-width:1140px){
+  .wpsa-module-3-4 .wpsa-module45-cards{grid-template-columns:repeat(2, minmax(0,1fr));}
+}
+@media (max-width:700px){
+  .wpsa-module-3-4 .wpsa-module45-cards{grid-template-columns:1fr;}
+}
+
+/* 4.5 grid: baseline row height but allow growth if needed */
+.wpsa-module-3-4 .wpsa-module45-cards {
+  grid-auto-rows: minmax(78px, auto);
+}
+
+/* Compact card layout (was padding:16px) */
+.wpsa-module-3-4 .wpsa-meta-card {
+  padding: 10px 12px;
+  min-height: 78px;                 /* close to the 79.4px you liked, but flexible */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+/* Slightly smaller typography inside 4.5 so two lines still fit */
+.wpsa-module-3-4 .wpsa-meta-card .header { 
+  margin-bottom: 4px; 
+}
+.wpsa-module-3-4 .wpsa-meta-card .value { 
+  font-size: 14px; 
+  line-height: 1.15; 
+}
+.wpsa-module-3-4 .wpsa-meta-card .subvalue { 
+  font-size: 12.5px; 
+  line-height: 1; 
+}
+
+/* Optional: a tighter floor on small screens */
+@media (max-width:700px){
+  .wpsa-module-3-4 .wpsa-meta-card { min-height: 66px; }
+}
+
+
+
+/*Compare*/
+/* Compare Results – hover highlight for "All S runs only" mode */
+.wpsa-compare-row--hover {
+  background: #fff7e6; /* soft highlight, adjust if needed */
+}
+
+/* Tooltip that shows hovered test URL */
+#wpsa-compare-hover-url {
+  position: absolute;
+  z-index: 9999;
+  display: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #333;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  pointer-events: none; /* so it doesn't interfere with hover */
+}
+
+
+
+.chart-card {
+    top: 15px;
+}
+
+#wpsa-compare-panel .wpsa-trends .chart-card {
+    margin-top: 30px;
+}
+
+
+.cr-table {
+    top: 15px;
+    position: relative; 
+    z-index: 1000;
+}
+
+.wpsa-compare-form {
+    top: 10px;
+    position: relative; 
+}
+
+.wpsa-form-label {
+    top: 1.75px;
+    position: relative;
+}
+
+#wpsa-compare-panel .wpsa-trends {
+    z-index: 1000;
+    position: relative;
+}
+
+/* Left-align the header on Compare panel */
+#wpsa-compare-panel .wpsa-header{
+  position: relative;      /* keep relative */
+  right: auto;             /* no offset */
+  margin: 0 0 10px 0;      /* remove auto-centering */
+  max-width: none;         /* let it follow the content column */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+#wpsa-compare-panel .wpsa-header-info{ text-align: left; }
+#wpsa-compare-panel .wpsa-logo{ height: 50px; flex: 0 0 auto; }
+
+
+
+#wpsa-compare-panel .wpsa-compare-title {
+    padding-top: 35px;
+     max-width:980px !important;      /* match .cr-table max-width */
+      margin:0 auto 12px;   /* same centering, slightly tighter gap */
+      position:relative;
+      padding-left:0;       /* make sure no stray indent */
+      text-align:left;
+  }
+  
+ /* Brand PDF: pull only the header fully to the left edge of the page content */
+#wpsa-customize-panel form{
+     background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 100;
+}
+
+
+@media (min-width: 750px){
+  #wpsa-customize-panel .header-brand{
+    /* keep it a flex row */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+
+    /* shift visually to the viewport-left, minus the admin’s left gutter */
+    transform: translateX(calc(((100vw - 750px) / -2) - 20px)); /* 20px = WP admin gutter */
+    padding-left: 120px; /* add the same gutter back so content isn’t glued to the edge */
+  }
+
+  #wpsa-customize-panel .header-brand .wpsa-logo{ height: 50px; flex: 0 0 auto; }
+  #wpsa-customize-panel .header-brand .wpsa-header-info{ text-align:left; flex:1 1 auto; min-width:0; }
+}
+
+@media (max-width: 749.98px){
+  #wpsa-customize-panel .header-brand{
+    transform: none;
+    margin: 0 0 10px 0;
+    display: flex; flex-wrap: wrap; gap: 12px;
+  }
+  #wpsa-customize-panel .header-brand .wpsa-header-info{ width: 100%; }
+}
+
+/*dropdowns on 1.16.2.*/
+/* Module 4.5 cards grid */
+.wpsa-module45-cards.wpsa-meta-cards{
+  /* (nothing here yet) */
+  align-items: start;              /* keep PHP/DB cards from stretching vertically */
+}
+
+/* Make the plugins column behave like a single grid cell with vertical stack */
+.wpsa-col-plugins{
+  /* (new) */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;                    /* avoid overflow from very long plugin names */
+}
+
+/* Module 2 – four cards as a grid. Triggers and panels live below. */
+.wpsa-module-2 .wpsa-stat-cards{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap:16px;
+  align-items: stretch;
+}
+
+/* Make the wrapper generate no box so card + details are separate grid items */
+.wpsa-module-2 .wpsa-card-stack{
+  display: contents !important;
+}
+
+/* Footnote sits on row 2, left half (under first two cards) */
+.wpsa-module-2 .wpsa-m2-footnote{
+  grid-column: 1 / span 2;  /* columns 1–2 */
+  grid-row: 2;              /* same row as the triggers */
+  margin: 6px 0 0;
+}
+
+/* Triggers sit on the same row (row 2), right half */
+.wpsa-module-2 .wpsa-inline-details{
+  grid-row: 2;
+  margin-top: 0;            /* pull them up */
+  align-self: end;          /* align nicely to the card bottoms */
+}
+.wpsa-module-2 .wpsa-inline-details.is-js{  grid-column: 3; }  /* under JS card */
+.wpsa-module-2 .wpsa-inline-details.is-css{ grid-column: 4; }  /* under CSS card */
+
+
+/* When opened, the panel spans full width but stays on row 3 */
+.wpsa-module-2 .wpsa-inline-details[open]{
+  grid-column: 1 / -1 !important;
+  grid-row: 3;
+}
+.wpsa-module-2 .wpsa-inline-details[open] > div{
+  background:beige; border:1px solid #ddd; border-radius:8px; padding:10px 12px;
+}
+
+table#wpsa-top10-autoload {
+  background:beige;  
+}
+
+
+/* Generic details styling */
+.wpsa-module-2 .wpsa-inline-details summary{ cursor:pointer; color:#444; }
+.wpsa-module-2 .wpsa-inline-details ul{
+  margin:6px 0; padding-left:18px; max-height:240px; overflow:auto; list-style:disc;
+}
+.wpsa-module-2 .wpsa-inline-details .wpsa-inline-copy{ text-align:right; margin-top:6px; }
+
+.wpsa-inline-copy{
+ justify-content: center;
+ display: flex;   
+}
+
+/* Keep the “legacy” footnote neutral if it exists outside the grid */
+#module2-footnote{ position: static !important; clear: both; margin-top: 10px; }
+
+/* Wider list on large screens */
+@media (min-width: 800px){
+  .wpsa-module-2 .wpsa-inline-details[open] ul{
+    max-height:none; overflow:visible; column-count:2; column-gap:24px;
+  }
+}
+
+/* Keep Module-2 card headers + ? bubble on one centered line */
+.wpsa-module-2 .wpsa-stat-card .header{
+  display: flex;
+  align-items: center;
+  justify-content: center;  /* keep it centered in the card */
+  gap: 4px;                  /* small gap between text and ? */
+  white-space: nowrap;       /* prevents the ? from dropping */
+}
+
+/* Slightly tighter bubble so it fits on the same line */
+.wpsa-module-2 .wpsa-stat-card .header .custom-tooltip{
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  margin-left: 4px;
+}
+
+/* Constrain the <details> pane and wrap long URLs inside it */
+.wpsa-inline-details > div{
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px; /* room for scrollbar */
+}
+
+/* Each <ul> is a grid child — let it shrink within the column */
+.wpsa-inline-details ul{
+  min-width: 0;          /* critical for CSS Grid */
+  max-width: 100%;
+  margin: 6px 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+/* Wrap very long URLs cleanly */
+.wpsa-inline-details ul li{
+  white-space: normal;
+  overflow-wrap: anywhere;  /* modern */
+  word-break: break-word;   /* fallback */
+}
+
+/* Module 1 – recolor row and its cells (overrides inline <td> backgrounds) */
+.wpsa-m1-green td  { background: #c6f7c3 !important; }
+.wpsa-m1-yellow td { background: #fff4c3 !important; }
+.wpsa-m1-red td    { background: #ffdddd !important; }
+
+
+
+/*diag top 10 issues*/
+/* Module 5 — Diagnostics: grid + inline title with badge; tighter dash */
+
+.wpsa-module-5 .diagnostics.split{
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 24px;
+  row-gap: 6px;
+  width: 100%;
+  /* kill any legacy multi-column/floats */
+  columns: initial !important;
+  column-count: initial !important;
+  column-width: initial !important;
+}
+
+.wpsa-module-5 .diagnostics.split > li{
+  float: none !important;
+  width: auto !important;
+  max-width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;                 /* badge ↔ title spacing + room before metric */
+  line-height: 1.35;
+  flex-wrap: wrap;          /* let metric drop to new line if needed */
+  min-width: 0;
+  margin: 0;
+  break-inside: avoid;
+}
+
+/* Keep badge + title together on one line */
+.wpsa-module-5 .diagnostics .title{
+  display: inline-block;
+  /*flex: 1 1 auto;*/
+  min-width: 0;
+  white-space: nowrap;      /* prevents vertical letter stacking */
+  overflow-wrap: normal;
+  word-break: normal;
+  font-weight: 400;
+}
+
+/* Metric: stays inline when there's room; can wrap on narrow screens */
+.wpsa-module-5 .diagnostics .value{
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-left: .15rem;      /* pulls the “—” closer to the title */
+}
+
+@media (max-width: 700px){
+  .wpsa-module-5 .diagnostics.split{ grid-template-columns: 1fr; }
+  .wpsa-module-5 .diagnostics .value{ white-space: normal; } /* allow wrap on phones */
+}
+
+/* Collapsible Diagnostics (open by default) */
+.wpsa-diag-block { margin-top: 4px; }
+
+.wpsa-diag-summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.wpsa-diag-summary h3 {
+  margin: 0;
+  text-decoration: underline; /* matches your current look */
+}
+
+/* Add a little breathing room when open */
+.wpsa-diag-block[open] .wpsa-diag-summary { margin-bottom: 6px; }
+
+/* Optional: hide the default marker if you don’t want it */
+/*
+.wpsa-diag-summary::-webkit-details-marker { display: none; }
+*/
+
+/* Print: keep details open and hide the toggler header line */
+@media print {
+  .wpsa-diag-block { display: block; }
+  .wpsa-diag-summary { display: none; }
+}
+
+/* --- Collapsible heading: caret on the RIGHT --- */
+.wpsa-diag-block summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;                 /* Firefox */
+}
+.wpsa-diag-block summary::-webkit-details-marker { display: none; } /* Chrome/Safari */
+.wpsa-diag-block .wpsa-diag-summary::after {
+  content: "▾";                     /* open state */
+  font-size: 25px;
+  line-height: 1;
+  margin-left: 12px;
+  opacity: .8;
+}
+.wpsa-diag-block[open] .wpsa-diag-summary::after { content: "▾"; }
+.wpsa-diag-block:not([open]) .wpsa-diag-summary::after { content: "▸"; }
+
+/* Keep the underline clickable only on text, not the whole row */
+.wpsa-diag-summary h3 { margin: 0; }
+
+/* --- Diagnostics masonry: independent left/right columns --- */
+/* Use multi-column layout on >=701px so each side flows independently */
+@media (min-width: 701px){
+  .wpsa-module-5 .diagnostics.split{
+    display: block !important;   /* switch off the grid */
+    column-count: 2;
+    column-gap: 24px;
+  }
+  .wpsa-module-5 .diagnostics.split > li{
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid;
+    width: auto !important;
+    max-width: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: .25rem 0;
+  }
+}
+
+/* Keep your small-screen single column */
+@media (max-width:700px){
+  .wpsa-module-5 .diagnostics.split{ column-count: 1; }
+}
+
+/* PDF: show full PSI screenshots instead of tiny circle */
+.wpsa-pdf-page .wpsa-psi-screenshot-box {
+    /* make it a normal rectangle */
+    display: inline-block;
+    width: 220px;          /* adjust if you want it bigger/smaller */
+    height: auto;
+    margin-left: 24px;     /* spacing from the score circle */
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* kill any spinner / dot pseudo-element on PDF */
+.wpsa-pdf-page .wpsa-psi-screenshot-box::before,
+.wpsa-pdf-page .wpsa-psi-screenshot-box::after {
+    content: none !important;
+}
+
+/* make sure the image itself actually shows */
+.wpsa-pdf-page img.wpsa-psi-screenshot-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 0;
 }

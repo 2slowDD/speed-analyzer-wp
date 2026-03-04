@@ -1,0 +1,313 @@
+  /*
+ * Speed Analyzer – report styles
+ * report-styles.css - v0.002
+ */
+  
+            /* hide UI-only bits */
+          #report-container details,
+          #report-container .wpsa-inline-details,
+          #report-container .wpsa-inline-copy { display:none !important; }
+        
+          /* layout guards */
+          #report-container .wpsa-pdf-page { break-before: page; -webkit-region-break-inside: avoid; break-inside: avoid; }
+        
+          /* type scale — small & uniform across pages */
+          #report-container { font-size: 12px; line-height: 1.35; }
+          #report-container h1 { font-size: 18px; line-height: 1.2; margin: 10px 0; }
+          #report-container h2 { font-size: 16px; line-height: 1.2; margin: 8px 0 8px !important; }
+          #report-container h3 { font-size: 14px; line-height: 1.2; margin: 8px 0 6px !important; }
+          #report-container h4 { font-size: 13px; line-height: 1.2; margin: 8px 0 6px !important; }
+          #report-container p  { font-size: 12px; line-height: 1.35; margin: 6px 0; }
+        
+       /* stat cards — uniform height, no wrapping */
+        #report-container .wpsa-stat-cards { gap: 12px !important; }
+        #report-container .wpsa-stat-card{
+          min-height: 86px !important; /* ← keep them all same height */
+          display:flex; flex-direction:column; justify-content:center;
+          padding:10px 10px; box-sizing:border-box;
+        }
+        #report-container .wpsa-stat-card .label{ font-size:12px; white-space:nowrap; }
+        #report-container .wpsa-stat-card .value{
+          font-size:14px; font-weight:700;
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis; /* ← stop 3rd line */
+        }
+        /* make the “Page size … (1.2 MB) ✓” stay on one line */
+        #report-container .wpsa-card-bytes .value *{ white-space:nowrap; }
+        #report-container .wpsa-stat-card .value svg,
+        #report-container .wpsa-stat-card .value img{ vertical-align:-1px !important; }
+
+        
+          /* module 2 footnote */
+          #report-container .wpsa-note, 
+          #report-container .note { font-size: 11px; line-height: 1.2; white-space: nowrap; }
+        
+        /* Diagnostics & Insights — unified compact list styling */
+        #report-container #diag-mobile li,
+        #report-container #diag-desktop li,
+        #report-container #ins-mobile li,
+        #report-container #ins-desktop li{
+          /* spacing identical for both lists */
+          margin: 3px 0 !important;
+          padding-left: 0 !important;
+          margin-left: 0 !important;
+          line-height: 1.25 !important;
+          /* shared icon size var (used by ::before variants) */
+          --wpsa-diag-icon-size: 9px;
+        }
+        
+        /* Inline SVG/IMG icons */
+        #report-container #diag-mobile li svg,
+        #report-container #diag-desktop li svg,
+        #report-container #ins-mobile li svg,
+        #report-container #ins-desktop li svg,
+        #report-container #diag-mobile li img,
+        #report-container #diag-desktop li img,
+        #report-container #ins-mobile li img,
+        #report-container #ins-desktop li img,
+        #report-container #diag-mobile li .icon svg,
+        #report-container #diag-desktop li .icon svg,
+        #report-container #ins-mobile li .icon svg,
+        #report-container #ins-desktop li .icon svg,
+        #report-container #diag-mobile li .icon img,
+        #report-container #diag-desktop li .icon img,
+        #report-container #ins-mobile li .icon img,
+        #report-container #ins-desktop li .icon img{
+          width: 9px !important;
+          height: 9px !important;
+          min-width: 9px !important;
+          min-height: 9px !important;
+          margin-right: 5px !important;
+          vertical-align: -1px !important;
+        }
+        
+        /* Dashicons / icon-fonts */
+        #report-container #diag-mobile li .dashicons,
+        #report-container #diag-desktop li .dashicons,
+        #report-container #ins-mobile li .dashicons,
+        #report-container #ins-desktop li .dashicons,
+        #report-container #diag-mobile li i[class*="icon"],
+        #report-container #diag-desktop li i[class*="icon"],
+        #report-container #ins-mobile li i[class*="icon"],
+        #report-container #ins-desktop li i[class*="icon"],
+        #report-container #diag-mobile li span[class*="icon"],
+        #report-container #diag-desktop li span[class*="icon"],
+        #report-container #ins-mobile li span[class*="icon"],
+        #report-container #ins-desktop li span[class*="icon"]{
+          font-size: 9px !important;
+          width: 9px !important;
+          height: 9px !important;
+          line-height: 9px !important;
+          display: inline-block !important;
+          margin-right: 5px !important;
+          vertical-align: -1px !important;
+        }
+        
+        /* ::marker / ::before bullets match size */
+        #report-container #diag-mobile li::marker,
+        #report-container #diag-desktop li::marker,
+        #report-container #ins-mobile li::marker,
+        #report-container #ins-desktop li::marker{
+          font-size: 9px !important;
+        }
+        #report-container #diag-mobile li::before,
+        #report-container #diag-desktop li::before,
+        #report-container #ins-mobile li::before,
+        #report-container #ins-desktop li::before{
+          width: var(--wpsa-diag-icon-size) !important;
+          height: var(--wpsa-diag-icon-size) !important;
+          margin-right: 5px !important;
+          background-size: var(--wpsa-diag-icon-size) var(--wpsa-diag-icon-size) !important;
+        }
+        
+        /* Keep right-side meta the same size as titles (works for both lists) */
+        #report-container #diag-mobile li small,
+        #report-container #diag-desktop li small,
+        #report-container #ins-mobile  li small,
+        #report-container #ins-desktop li small,
+        #report-container #diag-mobile li .meta,
+        #report-container #diag-desktop li .meta,
+        #report-container #ins-mobile  li .meta,
+        #report-container #ins-desktop li .meta,
+        #report-container #diag-mobile li .value,
+        #report-container #diag-desktop li .value,
+        #report-container #ins-mobile  li .value,
+        #report-container #ins-desktop li .value,
+        #report-container #diag-mobile li em,
+        #report-container #diag-desktop li em,
+        #report-container #ins-mobile  li em,
+        #report-container #ins-desktop li em{
+          font-size: 0.95em !important;
+          line-height: 1.2 !important;
+        }
+        
+        /* If an .icon wrapper exists, keep it tiny so it doesn't reserve space */
+        #report-container #diag-mobile li .icon,
+        #report-container #diag-desktop li .icon,
+        #report-container #ins-mobile  li .icon,
+        #report-container #ins-desktop li .icon{
+          width: 9px !important;
+          height: 9px !important;
+          min-width: 9px !important;
+          min-height: 9px !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          margin-right: 5px !important;
+        }
+        
+        /* Ensure badges themselves don’t flex the row */
+        #report-container #diag-mobile li > svg,
+        #report-container #diag-desktop li > svg,
+        #report-container #ins-mobile  li > svg,
+        #report-container #ins-desktop li > svg,
+        #report-container #diag-mobile li > img,
+        #report-container #diag-desktop li > img,
+        #report-container #ins-mobile  li > img,
+        #report-container #ins-desktop li > img,
+        #report-container #diag-mobile li > .icon,
+        #report-container #diag-desktop li > .icon,
+        #report-container #ins-mobile  li > .icon,
+        #report-container #ins-desktop li > .icon,
+        #report-container #diag-mobile li > .dashicons,
+        #report-container #diag-desktop li > .dashicons,
+        #report-container #ins-mobile  li > .dashicons,
+        #report-container #ins-desktop li > .dashicons{
+          flex: 0 0 auto !important;
+        }
+        
+        
+        /* --- Each item on its own line; keep meta next to the title --- */
+            #report-container #diag-mobile li,
+            #report-container #diag-desktop li,
+            #report-container #ins-mobile li,
+            #report-container #ins-desktop li{
+              display: flex !important;           /* not inline-flex */
+              align-items: baseline !important;
+              flex-wrap: wrap !important;         /* title can wrap */
+              width: 100% !important;             /* take the whole row */
+            }
+            
+            #report-container #diag-mobile li .diag-title,
+            #report-container #diag-desktop li .diag-title,
+            #report-container #ins-mobile li .diag-title,
+            #report-container #ins-desktop li .diag-title{
+              flex: 0 1 auto !important;
+              min-width: 0 !important;
+              display: inline !important;
+            }
+            
+            #report-container #diag-mobile li .diag-meta,
+            #report-container #diag-desktop li .diag-meta,
+            #report-container #ins-mobile li .diag-meta,
+            #report-container #ins-desktop li .diag-meta{
+              flex: 0 0 auto !important;
+              white-space: nowrap !important;     /* “— Est savings …” stays together */
+              margin-left: 6px !important;
+            }
+            
+            /* ensure the badge/icon doesn’t claim width */
+            #report-container #diag-mobile li > svg,
+            #report-container #diag-desktop li > svg,
+            #report-container #ins-mobile  li > svg,
+            #report-container #ins-desktop li > svg,
+            #report-container #diag-mobile li > img,
+            #report-container #diag-desktop li > img,
+            #report-container #ins-mobile  li > img,
+            #report-container #ins-desktop li > img,
+            #report-container #diag-mobile li > .icon,
+            #report-container #diag-desktop li > .icon,
+            #report-container #ins-mobile  li > .icon,
+            #report-container #ins-desktop li > .icon,
+            #report-container #diag-mobile li > .dashicons,
+            #report-container #diag-desktop li > .dashicons,
+            #report-container #ins-mobile  li > .dashicons,
+            #report-container #ins-desktop li > .dashicons{
+              flex: 0 0 auto !important;
+            }
+
+
+        
+        /* Page 3 cards: slightly shorter to prevent overflow */
+        #report-container .page--perf .wpsa-stat-card{
+          min-height: 76px !important;
+          padding-top: 8px !important;
+          padding-bottom: 8px !important;
+        }
+        #report-container .page--perf p{ margin:6px 0 !important; }
+
+        /* --- PDF only: custom summary + CTA pagination helpers --- */
+        #report-container .wpsa-custom-summary{
+          font-size:0.95em;           /* same size as your content/summary */
+          line-height:1.4;
+          margin-top:32px;
+        }
+        #report-container .wpsa-custom-summary pre{
+          white-space:pre-wrap;       /* preserve whitespace, breaks, code-like blocks */
+          margin:0 0 10px;
+        }
+        #report-container .wpsa-custom-summary .chunk{
+          break-inside:avoid;         /* keep each paragraph chunk intact */
+          page-break-inside:avoid;
+        }
+        #report-container .wpsa-cta{
+          break-inside:avoid;         /* keep CTA in one piece */
+          page-break-inside:avoid;
+        }
+
+        
+          /* header clone in PDF gets no bottom border (we draw a separate bar) */
+          #report-container .pdf-header-sep { height: 2px; background:#ff6b35; margin-top:6px; }
+          
+          
+ /* Module 5 header row in PDF: perf circle + PSI screenshot side by side */
+        #report-container .wpsa-perf-header-row{
+          display:flex;
+          align-items:center;
+          justify-content:flex-start;
+          gap:24px;
+          margin:10px 0 16px;
+        }
+
+        /* Make sure row stays compact on smaller widths in the PDF */
+        #report-container .wpsa-perf-header-row--mobile,
+        #report-container .wpsa-perf-header-row--desktop{
+          flex-wrap:nowrap;
+        }
+
+        /* Soft shadow around the perf circle (mobile & desktop) */
+        #report-container .wpsa-perf-header-row [id^="perf-circle-"]{
+          border-radius:999px;
+          background:#fff;
+          box-shadow:0 0 0 rgba(0,0,0,0.04), 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        /* PSI screenshot box styling in the PDF */
+        #report-container .wpsa-psi-screenshot-box{
+          position:relative;
+          left:auto !important;
+          /* let the image define height, just cap it */
+          max-height:260px;
+          overflow:hidden;
+          border:1px solid #bfbfbf;
+          border-radius:6px;
+          background:#fff;
+          padding:4px;
+          box-shadow:0 0 0 rgba(0,0,0,0.04), 0 3px 8px rgba(0,0,0,0.15);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+        }
+        
+        /* Strong override for the PSI screenshot image in the PDF */
+        #report-container .wpsa-psi-screenshot-box img,
+        #report-container img.wpsa-psi-screenshot-img{
+          display:block;
+          width:auto !important;
+          max-width:180px;
+          max-height:250px;
+          height:auto !important;
+          border-radius:4px !important;
+          object-fit:contain;
+        }
+
+      
