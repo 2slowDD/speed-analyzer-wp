@@ -1,0 +1,31 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# WordPress
+wp-config.php
+wp-content/uploads/
+*.log
+
+# Plugin development
+*.zip
+*.tar.gz
+
+# Environment / secrets
+.env
+.env.*
+secrets.php
+
+# Build artifacts (none currently, but for future tooling)
+node_modules/
+vendor/
+dist/
+build/
