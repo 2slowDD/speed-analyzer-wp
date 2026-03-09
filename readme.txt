@@ -5,7 +5,7 @@ Tags: performance, speed, ttfb, pagespeed
 Requires at least: 5.0
 Tested up to: 6.9
 Requires PHP: 7.0
-Stable tag: 1.18
+Stable tag: 1.18.1
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -241,3 +241,9 @@ The server will return a “quota exceeded” error. You can either wait until m
 * Added the response headers functionality on the module 1 dropdown section
 * license manager reworked
 * Load test # functionality fixed a bug where N/A values in module 2 loaded former test data
+
+= 1.18.1 =
+* Added wpsa-admin-cwv dahicons instead of text
+* Removed wpsa_speed column-wpsa_speed from the product pages
+* Added the Code Unloader reference
+

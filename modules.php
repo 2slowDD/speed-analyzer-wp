@@ -3,7 +3,7 @@
  * Modules.php 2–4 for Speed Analyzer 
  * 
  * @package Speed Analyzer - modules.php 
- * @version v0.729
+ * @version v0.730
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         echo '<h2 class="wpsa-module-title wpsa-module-2-title">2. Page asset summary</h2>';
         echo '<div id="module2-running" class="wpsa-module2-running">Running tests, this could take a minute…</div>';
         echo '<div id="module2-results" class="wpsa-module2-results"></div>';
-        echo '<p id="module2-footnote" class="wpsa-footnote">*These values should be as low as possible for the fastest results.</p>';
+        echo '<p id="module2-footnote" class="wpsa-footnote">*These values should be as low as possible for the fastest results. *You can unload page assets with a tool like <a href="https://wpservice.pro/our-products/code-unloader/" target="_blank">Code Unloader.</a></p>';
         echo '</div>';
     }
 

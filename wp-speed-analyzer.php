@@ -3,7 +3,7 @@
  * Plugin Name:     Speed Analyzer
  * Plugin URI:      https://wpservice.pro/our-products/speed-analyzer-wp-plugin/
  * Description:     Detect your website's speed, bottlenecks, and key performance indicators to look for.
- * Version:         1.18
+ * Version:         1.18.1
  * Author:          Dalibor Druzinec / WPservice
  * Author URI:      https://wpservice.pro
  * License:         GPL v3 or later
@@ -18,7 +18,7 @@ if ( ! defined( 'WPSA_PLUGIN_FILE' ) ) {
     define( 'WPSA_PLUGIN_FILE', __FILE__ );
 }
 
-define( 'SAWP_VERSION', '1.18' );
+define( 'SAWP_VERSION', '1.18.1' );
 if ( ! defined( 'WPSA_VERSION' ) ) {
     define( 'WPSA_VERSION', SAWP_VERSION );
 }

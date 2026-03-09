@@ -1,10 +1,10 @@
 /*
  * Speed Analyzer – report Scripts
- * report-scripts.js - Version: v0.176
+ * report-scripts.js - Version: v0.178
  */
 
 jQuery(function($){
-  console.info('report-scripts.js v0.176 loaded');
+  console.info('report-scripts.js v0.178 loaded');
   
   // --- PDF page sizing/tweaks ---
         const WPSA_PAGE_MAX_W = 660; // was 700px everywhere
@@ -44,6 +44,11 @@ jQuery(function($){
         return 'speed-analyzer-report.pdf';
       }
     }
+
+    const wpsaPdfCodeUnloaderLink = '<a href="https://wpservice.pro/our-products/code-unloader/" target="_blank" rel="noopener">Code Unloader</a>';
+    const wpsaPdfPerfmattersLink = '<a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a>';
+    const wpsaPdfUnloadToolsLinks = `${wpsaPdfCodeUnloaderLink} or ${wpsaPdfPerfmattersLink}`;
+    const wpsaPdfFlyingPressWpRocketLink = '<a href="https://wpservice.pro/tools-of-the-trade/flyingpress-vs-wp-rocket-compare/" target="_blank" rel="noopener">FlyingPress or WP Rocket</a>';
     
    // --- PDF branding helpers (robust to Document or Element roots) ---
     function wpsaGetPdfConfig(root) {
@@ -244,15 +249,16 @@ jQuery(function($){
         // remove any old notices
         $wrap.find('.notice').remove();
         const msg = r.data || 'PDF generation failed. Please retry.';
-        // use WP admin notice styling
-        $wrap.append(`
-          <div class="notice notice-error2">
-            <p><strong>Error:</strong> ${msg}</p>
-          </div>
-        `);
+
+        const $notice = $('<div class="notice notice-error2"></div>');
+        const $p = $('<p></p>');
+        $p.append($('<strong></strong>').text('Error:'));
+        $p.append(document.createTextNode(' ' + String(msg)));
+        $notice.append($p);
+        $wrap.append($notice);
+
         $btn.prop('disabled', false);
         return;
-      }
         // refresh both buttons
         updatePdfButton(r.data.remaining, r.data.limit);
 
@@ -703,14 +709,13 @@ jQuery(function($){
           const sLv    = sizeKb <= sizeTh[0] ? 0 : sizeKb <= sizeTh[1] ? 1 : 2;
           const cols   = ['#388e3c','#f9a825','#d32f2f'];
           
-          
-          let reqMsg;
+        let reqMsg;
           if (rLv === 0) {
             reqMsg = `Your request count is ${req} — no action needed.`;
           } else if (rLv === 1) {
-            reqMsg = `You have ${req} requests; consider unloading/deferring assets with the tools like <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a> or Asset CleanUp, and delay/defer the JS code with <a href="https://wpservice.pro/tools-of-the-trade/flyingpress-vs-wp-rocket-compare/" target="_blank" rel="noopener">FlyingPress or WP Rocket</a>.`;
+            reqMsg = `You have ${req} requests; consider unloading/deferring assets with the tools like ${wpsaPdfUnloadToolsLinks}, and delay/defer the JS code with ${wpsaPdfFlyingPressWpRocketLink}.`;
           } else {
-            reqMsg = `You have ${req} requests — minimize HTTP calls (bundle, lazy-load), unload unused resources with tools like <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a> or Asset CleanUp, and delay/defer the JS code with <a href="https://wpservice.pro/tools-of-the-trade/flyingpress-vs-wp-rocket-compare/" target="_blank" rel="noopener">FlyingPress or WP Rocket</a>.`;
+            reqMsg = `You have ${req} requests — minimize HTTP calls (bundle, lazy-load), unload unused resources with tools like ${wpsaPdfUnloadToolsLinks}, and delay/defer the JS code with ${wpsaPdfFlyingPressWpRocketLink}.`;
           }
 
           let sizeMsg;
@@ -719,7 +724,7 @@ jQuery(function($){
           } else if (sLv === 1) {
             sizeMsg = `Your page size is ${sizeKb.toFixed(1)} KB (${sizeMb} MB); compress images and defer non-critical assets.`;
           } else {
-            sizeMsg = `Your page size is ${sizeKb.toFixed(1)} KB (${sizeMb} MB) — minimize HTTP calls (bundle, lazy-load), unload unused resources with tools like <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a> or Asset CleanUp, and delay/defer the JS code with <a href="https://wpservice.pro/tools-of-the-trade/flyingpress-vs-wp-rocket-compare/" target="_blank" rel="noopener">FlyingPress or WP Rocket</a>.`;
+            sizeMsg = `Your page size is ${sizeKb.toFixed(1)} KB (${sizeMb} MB) — minimize HTTP calls (bundle, lazy-load), unload unused resources with tools like ${wpsaPdfUnloadToolsLinks}, and delay/defer the JS code with ${wpsaPdfFlyingPressWpRocketLink}.`;
           }
 
         const $p1 = $(`<p style="font-size:1.1em;color:${cols[rLv]};margin-top:12px;">${reqMsg}</p>`);
@@ -777,8 +782,8 @@ jQuery(function($){
           const $cssP = line('Onload CSS files', nCss, true);
         
           // shared recommendation
-          const $rec = $('<p style="margin:6px 0 0; font-size:0.95em; color:#444;">' +
-            'Recommended tools: <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a> (unloading by location, delay JS) or Asset CleanUp for granular unloads.' +
+         const $rec = $('<p style="margin:6px 0 0; font-size:0.95em; color:#444;">' +
+            'Recommended tools: ' + wpsaPdfCodeUnloaderLink + ' or ' + wpsaPdfPerfmattersLink + '.' +
           '</p>');
         
           $page2.append($jsP, $cssP, $rec);
@@ -832,9 +837,9 @@ jQuery(function($){
             } else if (overall === 0) {
               line = 'No or few onload files detected — no action needed.';
             } else if (overall === 1) {
-              line = `Some onload files detected (JS: ${a(nJs)}, CSS: ${a(nCss)}). Recommended tool: <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a>.`;
+              line = `Some onload files detected (JS: ${a(nJs)}, CSS: ${a(nCss)}). Recommended tools: ${wpsaPdfUnloadToolsLinks}.`;
             } else {
-              line = `Many onload files detected (JS: ${a(nJs)}, CSS: ${a(nCss)}). This often increases main-thread work and render delay. Prefer unloading non-critical assets on pages where they aren’t needed, and defer/delay scripts where possible. Recommended tool: <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a>.`;
+              line = `Many onload files detected (JS: ${a(nJs)}, CSS: ${a(nCss)}). This often increases main-thread work and render delay. Prefer unloading non-critical assets on pages where they aren’t needed, and defer/delay scripts where possible. Recommended tools: ${wpsaPdfUnloadToolsLinks}.`;
             }
             
               const $concise = $(`<p style="font-size:1.1em;color:${color};margin-top:6px;">${line}</p>`);
@@ -2171,14 +2176,13 @@ jQuery(function($){
               Usually, the most significant gains can be achieved by optimizing the image size, format, and lazy loading with an image
               optimization tool like
               <a href="https://wpservice.pro/tools-of-the-trade/ewww-image-optimizer-plugin-an-extensive-review/" target="_blank" rel="noopener">EWWW IO</a>,
-              unloading as much code as possible with plugins like <a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a>,
+              unloading as much code as possible with plugins like ${wpsaPdfUnloadToolsLinks},
               removing unused CSS and properly utilizing the delay/defer of the remaining .js code with
               <a href="https://wpservice.pro/tools-of-the-trade/wp-rocket-review-and-case-study/" target="_blank" rel="noopener">WP Rocket</a> or
               <a href="https://wpservice.pro/flyingpress" target="_blank" rel="noopener">FlyingPress</a>. Those two should also provide proper caching.
             </p>
           `);
         }
-
         
         // mount Page 7
         $c.append(
@@ -2625,13 +2629,15 @@ jQuery(function($){
                 msg = 'The server hit an error building the PDF. If this persists, run a fresh test and try again.';
               }
             
-              const $wrap = $btn.closest('.wpsa-pdf-button-wrap');
+            const $wrap = $btn.closest('.wpsa-pdf-button-wrap');
               $wrap.find('.notice').remove();
-              $wrap.append(`
-                <div class="notice notice-error2">
-                  <p><strong>Error:</strong> ${msg}</p>
-                </div>
-              `);
+
+              const $notice = $('<div class="notice notice-error2"></div>');
+              const $p = $('<p></p>');
+              $p.append($('<strong></strong>').text('Error:'));
+              $p.append(document.createTextNode(' ' + String(msg || 'PDF generation failed. Please try again.')));
+              $notice.append($p);
+              $wrap.append($notice);
             })
 
         .always(function () {

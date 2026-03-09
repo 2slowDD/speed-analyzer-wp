@@ -1,6 +1,6 @@
 <?php
 /**
- * editors.php v0.09
+ * editors.php v0.11
  * Speed Analyzer — Editors UI (Posts/Pages list columns + small admin UI helpers)
  */
 
@@ -163,6 +163,19 @@ function wpsa_editors_list_column_css() {
 
 .column-wpsa_speed .wpsa-admin-cwv .wpsa-cwv-line{
   margin: 0;
+}
+
+.column-wpsa_speed .wpsa-cwv-label{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+
+.column-wpsa_speed .wpsa-cwv-label .dashicons{
+  width:14px;
+  height:14px;
+  font-size:14px;
+  line-height:1;
 }
 
 .column-wpsa_speed .wpsa-cwv-status{
@@ -544,6 +557,27 @@ function wpsa_editor_fmt_inp( $v ) {
 add_filter( 'manage_pages_columns', 'wpsa_editor_add_speed_column', 20 );
 add_filter( 'manage_posts_columns', 'wpsa_editor_add_speed_column', 20 );
 function wpsa_editor_add_speed_column( $cols ) {
+    $screen_post_type = '';
+
+    if ( function_exists( 'get_current_screen' ) ) {
+        $screen = get_current_screen();
+        if ( $screen && ! empty( $screen->post_type ) ) {
+            $screen_post_type = (string) $screen->post_type;
+        }
+    }
+
+    if ( '' === $screen_post_type && isset( $_GET['post_type'] ) ) {
+        $screen_post_type = sanitize_key( wp_unslash( $_GET['post_type'] ) );
+    }
+
+    if ( '' === $screen_post_type ) {
+        $screen_post_type = 'post';
+    }
+
+    if ( ! in_array( $screen_post_type, [ 'post', 'page' ], true ) ) {
+        return $cols;
+    }
+
     $out = [];
     $inserted = false;
 
@@ -563,7 +597,6 @@ function wpsa_editor_add_speed_column( $cols ) {
 
     return $out;
 }
-
 /**
  * Render column cells
  */
@@ -571,6 +604,11 @@ add_action( 'manage_pages_custom_column', 'wpsa_editor_render_speed_column', 10,
 add_action( 'manage_posts_custom_column', 'wpsa_editor_render_speed_column', 10, 2 );
 function wpsa_editor_render_speed_column( $col, $post_id ) {
     if ( 'wpsa_speed' !== $col ) {
+        return;
+    }
+
+    $post_type = get_post_type( $post_id );
+    if ( ! in_array( $post_type, [ 'post', 'page' ], true ) ) {
         return;
     }
 
@@ -649,6 +687,7 @@ function wpsa_editor_render_speed_column( $col, $post_id ) {
     $fcp_cls = wpsa_editor_metric_class( 'fcp', $r['fcp'] ?? null );
     $cls_cls = wpsa_editor_metric_class( 'cls', $r['cls'] ?? null );
     $inp_cls = wpsa_editor_metric_class( 'inp', $r['inp'] ?? null );
+    $show_cwv_block = in_array( get_post_type( $post_id ), [ 'page', 'post' ], true );
 
     echo '<div class="wpsa-admin-cell">';
 
@@ -703,17 +742,19 @@ function wpsa_editor_render_speed_column( $col, $post_id ) {
             : '--';
 
 
-        echo '<div class="wpsa-admin-cwv-divider" aria-hidden="true"></div>';
+        if ( $show_cwv_block ) {
+            echo '<div class="wpsa-admin-cwv-divider" aria-hidden="true"></div>';
 
-        echo '<div class="wpsa-admin-cwv">';
-            echo '<div class="wpsa-cwv-line">CWV m: <span class="wpsa-cwv-status" data-cwv-status="' . esc_attr( $cwv_m_status ) . '">' . esc_html( $cwv_m_label ) . '</span></div>';
-            echo '<div class="wpsa-cwv-line">scope: ' . esc_html( $cwv_m_scope ) . '</div>';
+            echo '<div class="wpsa-admin-cwv">';
+                echo '<div class="wpsa-cwv-line"><span class="wpsa-cwv-label">CWV <span class="dashicons dashicons-smartphone" aria-hidden="true"></span></span>: <span class="wpsa-cwv-status" data-cwv-status="' . esc_attr( $cwv_m_status ) . '">' . esc_html( $cwv_m_label ) . '</span></div>';
+                echo '<div class="wpsa-cwv-line">scope: ' . esc_html( $cwv_m_scope ) . '</div>';
 
-            echo '<div class="wpsa-cwv-line" style="margin-top:4px;">CWV d: <span class="wpsa-cwv-status" data-cwv-status="' . esc_attr( $cwv_d_status ) . '">' . esc_html( $cwv_d_label ) . '</span></div>';
-            echo '<div class="wpsa-cwv-line">scope: ' . esc_html( $cwv_d_scope ) . '</div>';
-        echo '</div>';
-        
-        echo '<div class="wpsa-admin-cwv-divider" aria-hidden="true"></div>';
+                echo '<div class="wpsa-cwv-line" style="margin-top:4px;"><span class="wpsa-cwv-label">CWV <span class="dashicons dashicons-desktop" aria-hidden="true"></span></span>: <span class="wpsa-cwv-status" data-cwv-status="' . esc_attr( $cwv_d_status ) . '">' . esc_html( $cwv_d_label ) . '</span></div>';
+                echo '<div class="wpsa-cwv-line">scope: ' . esc_html( $cwv_d_scope ) . '</div>';
+            echo '</div>';
+
+            echo '<div class="wpsa-admin-cwv-divider" aria-hidden="true"></div>';
+        }
 
         echo '<div class="wpsa-admin-actions">';
           echo '<a href="' . esc_url( $retest_url ) . '"><span class="dashicons dashicons-update" aria-hidden="true"></span>Re-test</a>';
