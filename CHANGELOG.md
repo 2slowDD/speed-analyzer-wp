@@ -3,6 +3,14 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.18.1]
+### Changed
+- Replaced text with wpsa-admin-cwv dahicons 
+- Added the Code Unloader reference
+
+### Fixed
+- Removed wpsa_speed column-wpsa_speed from the product pages
+
 ---
 
 ## [1.18] - 2025
