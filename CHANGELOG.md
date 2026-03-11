@@ -3,7 +3,7 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.18.1]
+## [1.18.1] - 2026-03-11
 ### Changed
 - Replaced text with wpsa-admin-cwv dahicons 
 - Added the Code Unloader reference
@@ -13,7 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [1.18] - 2025
+## [1.18] - 2025-06-03
 ### Added
 - Response headers functionality in the Module 1 dropdown section
 

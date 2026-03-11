@@ -1,7 +1,7 @@
 # Speed Analyzer — WordPress Plugin
 
 **In-dashboard website performance auditing for WordPress.**
-Version: 1.18 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
+Version: 1.18.1 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
 
 > Official plugin page: [wpservice.pro/our-products/speed-analyzer-wp-plugin](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/)
 
@@ -73,4 +73,28 @@ This plugin delegates all testing to remote services. **No personal data is coll
 ---
 
 ## Repository Structure
+
+| File | Purpose |
+|------|---------|
+| `wp-speed-analyzer.php` | Main plugin file — registers all hooks and loads sub-modules |
+| `helpers.php` | Shared utility functions |
+| `modules.php` | Test modules 1–2 (TTFB, page asset summary) |
+| `diagnostics.php` | Module 3 — PSI/CWV diagnostics |
+| `summary.php` | Module 6 — summary & recommendations |
+| `conclusion.php` | Module 7 — conclusion |
+| `report.php` | PDF report generation |
+| `lpanel.php` | License panel |
+| `schedule.php` | Scheduled tests |
+| `compare.php` | Compare Results (A/B testing) |
+| `editors.php` | Posts/Pages list columns and admin UI helpers |
+| `admin-styles.css` | Admin UI styles |
+| `admin-scripts.js` | Admin UI scripts |
+| `admin-widgets.js` | Admin widget scripts |
+| `cwv-ui.js` | Core Web Vitals UI |
+| `report-scripts.js` | PDF report scripts |
+| `report-styles.css` | PDF report styles |
+| `schedule-scripts.js` | Scheduled tests UI scripts |
+| `assets/js/html2pdf.bundle.min.js` | Bundled html2pdf.js v0.10.3 for offline PDF generation |
+| `SAWP-logo.svg` | Plugin logo |
+| `readme.txt` | WordPress.org plugin readme |
 
