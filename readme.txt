@@ -9,9 +9,12 @@ Stable tag: 1.18.1
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
-Test your website's speed. In-dashboard performance auditing of TTFB, Request Count, Google PSI LCP/FCP, Autoload Options, PHP version, and more.
+Test and audit your website's speed directly inside the WordPress dashboard. TTFB, Request Count, Google PSI LCP/FCP, Autoload Options, and more.
 
 == Description ==
+
+[youtube https://youtu.be/B5C8iZISJoA]
+
 Official plugin homepage:
 [https://wpservice.pro/our-products/speed-analyzer-wp-plugin/](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/)
 
@@ -246,4 +249,5 @@ The server will return a “quota exceeded” error. You can either wait until m
 * Added wpsa-admin-cwv dahicons instead of text
 * Removed wpsa_speed column-wpsa_speed from the product pages
 * Added the Code Unloader reference
+* Icon changed
 

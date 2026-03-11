@@ -244,26 +244,27 @@ jQuery(function($){
       })
       .done(function(r){
         // If server returned an error (e.g. over quota), show it and bail
-      if ( ! r.success ) {
-        const $wrap = $btn.closest('.wpsa-pdf-button-wrap');
-        // remove any old notices
-        $wrap.find('.notice').remove();
-        const msg = r.data || 'PDF generation failed. Please retry.';
+        if ( ! r.success ) {
+          const $wrap = $btn.closest('.wpsa-pdf-button-wrap');
+          // remove any old notices
+          $wrap.find('.notice').remove();
+          const msg = r.data || 'PDF generation failed. Please retry.';
 
-        const $notice = $('<div class="notice notice-error2"></div>');
-        const $p = $('<p></p>');
-        $p.append($('<strong></strong>').text('Error:'));
-        $p.append(document.createTextNode(' ' + String(msg)));
-        $notice.append($p);
-        $wrap.append($notice);
+          const $notice = $('<div class="notice notice-error2"></div>');
+          const $p = $('<p></p>');
+          $p.append($('<strong></strong>').text('Error:'));
+          $p.append(document.createTextNode(' ' + String(msg)));
+          $notice.append($p);
+          $wrap.append($notice);
 
-        $btn.prop('disabled', false);
-        return;
+          $btn.prop('disabled', false);
+          return;
+        }
+
         // refresh both buttons
         updatePdfButton(r.data.remaining, r.data.limit);
 
-
-      // Prepare off-DOM HTML & strip tooltips
+        // Prepare off-DOM HTML & strip tooltips
         const $off = $('<div>').html(r.data.html);
         $off.find('.custom-tooltip, .custom-tooltip + svg').remove();
         // Also remove all <details> and inline copies from the source before cloning sections
