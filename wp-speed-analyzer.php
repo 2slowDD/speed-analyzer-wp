@@ -3,7 +3,7 @@
  * Plugin Name:     Speed Analyzer
  * Plugin URI:      https://wpservice.pro/our-products/speed-analyzer-wp-plugin/
  * Description:     Detect your website's speed, bottlenecks, and key performance indicators to look for.
- * Version:         1.18.1
+ * Version:         1.18.2
  * Author:          Dalibor Druzinec / WPservice
  * Author URI:      https://wpservice.pro
  * License:         GPL v3 or later
@@ -18,7 +18,7 @@ if ( ! defined( 'WPSA_PLUGIN_FILE' ) ) {
     define( 'WPSA_PLUGIN_FILE', __FILE__ );
 }
 
-define( 'SAWP_VERSION', '1.18.1' );
+define( 'SAWP_VERSION', '1.18.2' );
 if ( ! defined( 'WPSA_VERSION' ) ) {
     define( 'WPSA_VERSION', SAWP_VERSION );
 }
@@ -1105,8 +1105,9 @@ function wpsa_render_tool_page() {
 
       </div><!-- .wpsa-main-content -->
 
-      <div class="wpsa-feedback-panel" role="complementary"
+      <div class="wpsa-feedback-stack" role="complementary"
            aria-label="<?php esc_attr_e( 'Speed Analyzer Feedback', 'speed-analyzer' ); ?>">
+        <div class="wpsa-feedback-panel">
         <div class="wpsa-feedback-section">
           <h2><?php esc_html_e( 'Ratings & Reviews', 'speed-analyzer' ); ?></h2>
           <p>
@@ -1136,7 +1137,46 @@ function wpsa_render_tool_page() {
             <?php esc_html_e( 'Get Support', 'speed-analyzer' ); ?>
           </a>
         </div>
-      </div><!-- .wpsa-feedback-panel -->
+        </div>
+
+        <div class="wpsa-feedback-panel wpsa-product-card">
+          <h2><?php esc_html_e( 'Code Unloader', 'speed-analyzer' ); ?></h2>
+          <p><?php esc_html_e( 'Unload scripts and styles per page after Speed Analyzer shows what needs attention.', 'speed-analyzer' ); ?></p>
+          <a href="https://wpservice.pro/our-products/code-unloader/"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="wpsa-product-link">
+            <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'assets/img/code-unloader-100x100.png' ); ?>"
+                 alt="<?php esc_attr_e( 'Code Unloader', 'speed-analyzer' ); ?>"
+                 class="wpsa-product-icon">
+          </a>
+          <a href="https://wpservice.pro/our-products/code-unloader/"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="wpsa-button-feedback">
+            <?php esc_html_e( 'Get Code Unloader', 'speed-analyzer' ); ?>
+          </a>
+        </div>
+
+        <div class="wpsa-feedback-panel wpsa-product-card">
+          <h2><?php esc_html_e( 'AI Assets Scanner', 'speed-analyzer' ); ?></h2>
+          <p><?php esc_html_e( 'Try the groundbreaking automatic AI Assets Scanner unloading for smarter asset rules with less manual work.', 'speed-analyzer' ); ?></p>
+          <a href="https://wpservice.pro/our-products/ai-assets-scanner/"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="wpsa-product-link">
+            <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'assets/img/ai-assets-scanner-100x100.png' ); ?>"
+                 alt="<?php esc_attr_e( 'AI Assets Scanner', 'speed-analyzer' ); ?>"
+                 class="wpsa-product-icon">
+          </a>
+          <a href="https://wpservice.pro/our-products/ai-assets-scanner/"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="wpsa-button-feedback">
+            <?php esc_html_e( 'Get AI Assets Scanner', 'speed-analyzer' ); ?>
+          </a>
+        </div>
+      </div><!-- .wpsa-feedback-stack -->
 
     </div><!-- .wpsa-layout -->
 <?php

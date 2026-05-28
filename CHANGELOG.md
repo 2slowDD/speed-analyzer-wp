@@ -3,6 +3,15 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.18.2]
+### Added
+- Code Unloader and AI Assets Scanner product cards below the admin ratings and reviews panel.
+- Public README badges for CI, license, and version.
+
+### Changed
+- Updated WordPress compatibility metadata to `Tested up to: 7.0`.
+
+---
 ## [1.18.1]
 ### Changed
 - Replaced text with wpsa-admin-cwv dahicons 

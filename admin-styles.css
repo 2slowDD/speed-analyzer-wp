@@ -1470,6 +1470,48 @@ font-size: 14px;}
   font-size: 14px;
 }
 
+.wpsa-feedback-stack {
+  position: absolute;
+  top: 500px;
+  right: 10px;
+  width: 220px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wpsa-feedback-stack .wpsa-feedback-panel {
+  position: static;
+  top: auto;
+  right: auto;
+  width: auto;
+  z-index: auto;
+  box-sizing: border-box;
+}
+
+.wpsa-feedback-panel.wpsa-product-card {
+  text-align: center;
+}
+
+.wpsa-feedback-panel.wpsa-product-card p {
+  text-align: center;
+}
+
+.wpsa-product-link {
+  display: block;
+  margin: 10px 0 14px;
+  text-align: center;
+}
+
+.wpsa-product-icon {
+  width: 100px;
+  height: 100px;
+  border-radius: 16px;
+  display: inline-block;
+  object-fit: contain;
+}
+
 /* Each internal section (Ratings vs. Support) */
 .wpsa-feedback-panel .wpsa-feedback-section {
   margin-bottom: 20px;
@@ -1527,7 +1569,8 @@ font-size: 14px;}
 
 /* Hide the entire panel on smaller screens */
 @media (max-width: 767px) {
-  .wpsa-feedback-panel {
+  .wpsa-feedback-panel,
+  .wpsa-feedback-stack {
     display: none;
   }
 }
