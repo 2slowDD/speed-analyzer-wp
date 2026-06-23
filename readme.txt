@@ -5,7 +5,7 @@ Tags: performance, speed, ttfb, pagespeed
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 1.18.2
+Stable tag: 1.18.3
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -250,6 +250,10 @@ The server will return a “quota exceeded” error. You can either wait until m
 * Removed wpsa_speed column-wpsa_speed from the product pages
 * Added the Code Unloader reference
 * Icon changed
+
+= 1.18.3 =
+* Added a progress notice with an animated activity indicator while the PDF report is being built before the browser save prompt appears.
+* Fixed PDF quota accounting so server-side PDF render failures do not consume the daily PDF limit.
 
 = 1.18.2 =
 * Added Code Unloader and AI Assets Scanner product cards below the admin ratings and reviews area.

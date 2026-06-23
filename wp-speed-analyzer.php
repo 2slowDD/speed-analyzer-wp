@@ -3,7 +3,7 @@
  * Plugin Name:     Speed Analyzer
  * Plugin URI:      https://wpservice.pro/our-products/speed-analyzer-wp-plugin/
  * Description:     Detect your website's speed, bottlenecks, and key performance indicators to look for.
- * Version:         1.18.2
+ * Version:         1.18.3
  * Author:          Dalibor Druzinec / WPservice
  * Author URI:      https://wpservice.pro
  * License:         GPL v3 or later
@@ -18,7 +18,7 @@ if ( ! defined( 'WPSA_PLUGIN_FILE' ) ) {
     define( 'WPSA_PLUGIN_FILE', __FILE__ );
 }
 
-define( 'SAWP_VERSION', '1.18.2' );
+define( 'SAWP_VERSION', '1.18.3' );
 if ( ! defined( 'WPSA_VERSION' ) ) {
     define( 'WPSA_VERSION', SAWP_VERSION );
 }
@@ -61,9 +61,6 @@ function wpsa_ajax_pdf_report() {
         wp_send_json_error( 'Daily PDF limit reached. Upgrade tier or wait until tomorrow.' );
     }
 
-    // Bump PDF usage count
-    wpsa_increment_pdf_usage();
-
     $raw_test_url = wp_unslash( filter_input( INPUT_POST, 'test_url', FILTER_UNSAFE_RAW ) ?? '' );
     $tested_url   = esc_url_raw( $raw_test_url );
 
@@ -88,7 +85,10 @@ function wpsa_ajax_pdf_report() {
     wpsa_pdf_report_content( $tested_url, $debug_log, $results_log_pdf, $test_no );
     $html = ob_get_clean();
 
-        $q2 = wpsa_check_quota( 'pdf' );
+    // Count PDF usage only after server-side report markup was built successfully.
+    wpsa_increment_pdf_usage();
+
+    $q2 = wpsa_check_quota( 'pdf' );
     if ( is_wp_error( $q2 ) || ! is_array( $q2 ) ) {
         $q2 = [
             'remaining' => (int) wpsa_get_pdf_remaining(),

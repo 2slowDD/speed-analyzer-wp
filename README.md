@@ -3,11 +3,11 @@
 <p align="center">
   <img alt="CI Passing" src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge">
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-green?style=for-the-badge"></a>
-  <img alt="Version 1.18.2" src="https://img.shields.io/badge/Version-1.18.2-blue?style=for-the-badge">
+  <img alt="Version 1.18.3" src="https://img.shields.io/badge/Version-1.18.3-blue?style=for-the-badge">
 </p>
 
 **In-dashboard website performance auditing for WordPress.**
-Version: 1.18.2 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
+Version: 1.18.3 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
 
 > Official plugin page: [wpservice.pro/our-products/speed-analyzer-wp-plugin](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/)
 

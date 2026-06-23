@@ -3,6 +3,14 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.18.3]
+### Added
+- PDF generation now shows a progress notice with an animated activity indicator while the report is being built before the browser save prompt appears.
+
+### Fixed
+- PDF quota accounting now waits until server-side PDF report markup is built successfully before consuming the daily PDF limit.
+
+---
 ## [1.18.2]
 ### Added
 - Code Unloader and AI Assets Scanner product cards below the admin ratings and reviews panel.

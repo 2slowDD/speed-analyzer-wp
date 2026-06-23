@@ -1,10 +1,10 @@
 /*
  * Speed Analyzer – report Scripts
- * report-scripts.js - Version: v0.178
+ * report-scripts.js - Version: v0.184
  */
 
 jQuery(function($){
-  console.info('report-scripts.js v0.178 loaded');
+  console.info('report-scripts.js v0.184 loaded');
   
   // --- PDF page sizing/tweaks ---
         const WPSA_PAGE_MAX_W = 660; // was 700px everywhere
@@ -202,6 +202,11 @@ jQuery(function($){
       $bottom.find('button').attr('id', 'report-button');
       $('#report-button-wrap').empty().append($bottom);
 
+      if (wpsaPdfBuildInProgress) {
+        renderPdfBuildNotice($top);
+        renderPdfBuildNotice($bottom);
+      }
+
       // 4) ALSO refresh the always-visible Tests-panel counter, if present
       var $testsCounter = $('#wpsa-pdf-counter-tests');
       if ($testsCounter.length) {
@@ -227,14 +232,126 @@ jQuery(function($){
     });
     
     
+    const WPSA_PDF_BUILD_MESSAGE = 'Please wait a moment while the PDF report is being built.';
+    let wpsaPdfBuildInProgress = false;
+    let wpsaPdfBuildPulseTimer = null;
+    let wpsaPdfBuildPulseOn = false;
+
+    function ensurePdfBuildNoticeStyles() {
+      if ($('#wpsa-pdf-build-notice-style').length) return;
+
+      $('<style id="wpsa-pdf-build-notice-style"></style>')
+        .text(
+          '@keyframes wpsaPdfBuildPulse {' +
+            '0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.12); background:#fff; }' +
+            '50% { box-shadow: 0 5px 18px rgba(255,107,53,0.32); background:#fff8f4; }' +
+          '}' +
+          '@keyframes wpsaPdfBuildDotPulse {' +
+            '0%, 100% { transform: scale(0.72); opacity: 0.45; box-shadow: 0 0 0 0 rgba(255,107,53,0.42); }' +
+            '50% { transform: scale(1.18); opacity: 1; box-shadow: 0 0 0 7px rgba(255,107,53,0); }' +
+          '}' +
+          '@media (prefers-reduced-motion: reduce) {' +
+            '.wpsa-pdf-build-notice { animation: none !important; }' +
+          '}'
+        )
+        .appendTo('head');
+    }
+
+    function stopPdfBuildPulseFallback() {
+      if (wpsaPdfBuildPulseTimer) {
+        window.clearInterval(wpsaPdfBuildPulseTimer);
+        wpsaPdfBuildPulseTimer = null;
+      }
+      wpsaPdfBuildPulseOn = false;
+    }
+
+    function startPdfBuildPulseFallback() {
+      if (wpsaPdfBuildPulseTimer) return;
+
+      wpsaPdfBuildPulseTimer = window.setInterval(function(){
+        wpsaPdfBuildPulseOn = !wpsaPdfBuildPulseOn;
+        $('.wpsa-pdf-build-pulse-dot').css({
+          opacity: wpsaPdfBuildPulseOn ? '1' : '0.38',
+          transform: wpsaPdfBuildPulseOn ? 'scale(1.28)' : 'scale(0.72)',
+          boxShadow: wpsaPdfBuildPulseOn ? '0 0 0 7px rgba(255,107,53,0)' : '0 0 0 0 rgba(255,107,53,0.42)'
+        });
+      }, 650);
+    }
+
+    function clearPdfBuildNotice() {
+      wpsaPdfBuildInProgress = false;
+      stopPdfBuildPulseFallback();
+      $('.wpsa-pdf-build-notice').remove();
+    }
+
+    function renderPdfBuildNotice($wrap) {
+      if (!$wrap || !$wrap.length) return;
+      ensurePdfBuildNoticeStyles();
+      $wrap.find('.wpsa-pdf-build-notice').remove();
+
+      const $notice = $('<div class="notice notice-info wpsa-pdf-build-notice" role="status" aria-live="polite"></div>').css({
+        display: 'inline-block',
+        margin: '10px auto 0',
+        padding: '8px 12px',
+        maxWidth: '420px',
+        textAlign: 'left',
+        borderLeftColor: '#ff6b35',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        animation: 'wpsaPdfBuildPulse 2.4s ease-in-out infinite'
+      });
+      const $p = $('<p></p>').css({
+        display: 'flex',
+        alignItems: 'center',
+        gap: '9px',
+        margin: 0
+      });
+      const $dot = $('<span class="wpsa-pdf-build-pulse-dot" aria-hidden="true"></span>').css({
+        display: 'inline-block',
+        flex: '0 0 auto',
+        width: '10px',
+        height: '10px',
+        borderRadius: '999px',
+        background: '#ff6b35',
+        opacity: '0.45',
+        transform: 'scale(0.72)',
+        transition: 'opacity 0.55s ease-in-out, transform 0.55s ease-in-out, box-shadow 0.55s ease-in-out',
+        animation: 'wpsaPdfBuildDotPulse 1.45s ease-in-out infinite'
+      });
+      $p.append($dot);
+      $p.append($('<span></span>').text(WPSA_PDF_BUILD_MESSAGE));
+      $notice.append($p);
+
+      const $button = $wrap.find('.wpsa-button-pdf').first();
+      if ($button.length) {
+        $button.after($notice);
+      } else {
+        $wrap.append($notice);
+      }
+    }
+
+    function showPdfBuildNotice($btn) {
+      wpsaPdfBuildInProgress = true;
+      $('.wpsa-pdf-build-notice').remove();
+
+      if ($btn && $btn.length) {
+        renderPdfBuildNotice($btn.closest('.wpsa-pdf-button-wrap'));
+      }
+
+      $('.wpsa-pdf-button-wrap').each(function(){
+        renderPdfBuildNotice($(this));
+      });
+      startPdfBuildPulseFallback();
+    }
+
     function generatePdf(e){
       e.preventDefault();
-    
-      // Always call server; Gatekeeper will reject if over‐quota.   
-    
+
+      // Always call server; Gatekeeper will reject if over‐quota.
+
       const $btn = $(this).prop('disabled', true);
       const testUrl = $('input[name="test_url"]').val();
-    
+      showPdfBuildNotice($btn);
+
       $.post(wpsaPdf.ajaxUrl, {
         action: 'wpsa_pdf_report',
         nonce:  wpsaPdf.nonce,
@@ -248,6 +365,7 @@ jQuery(function($){
           const $wrap = $btn.closest('.wpsa-pdf-button-wrap');
           // remove any old notices
           $wrap.find('.notice').remove();
+          clearPdfBuildNotice();
           const msg = r.data || 'PDF generation failed. Please retry.';
 
           const $notice = $('<div class="notice notice-error2"></div>');
@@ -263,7 +381,9 @@ jQuery(function($){
 
         // refresh both buttons
         updatePdfButton(r.data.remaining, r.data.limit);
+        showPdfBuildNotice();
 
+        window.setTimeout(function(){
         // Prepare off-DOM HTML & strip tooltips
         const $off = $('<div>').html(r.data.html);
         $off.find('.custom-tooltip, .custom-tooltip + svg').remove();
@@ -2597,10 +2717,12 @@ jQuery(function($){
             $c.hide();
             // Clean up the head-injected PDF-only CSS so it never leaks to the UI
             $('#wpsa-pdf-only').remove();
+            clearPdfBuildNotice();
           });
+        }, 50);
 
 
-        
+
         }) // <— closes .done(function(r){ ... )
         .fail(function (xhr, status, err) {
               // Better console output
@@ -2632,6 +2754,7 @@ jQuery(function($){
             
             const $wrap = $btn.closest('.wpsa-pdf-button-wrap');
               $wrap.find('.notice').remove();
+              clearPdfBuildNotice();
 
               const $notice = $('<div class="notice notice-error2"></div>');
               const $p = $('<p></p>');
