@@ -5,7 +5,7 @@ Tags: performance, speed, ttfb, pagespeed
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 1.18.3
+Stable tag: 1.18.4
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -250,6 +250,9 @@ The server will return a “quota exceeded” error. You can either wait until m
 * Removed wpsa_speed column-wpsa_speed from the product pages
 * Added the Code Unloader reference
 * Icon changed
+
+= 1.18.4 =
+* Added a persistent "Place sidebars on top" admin toggle for surfacing sidebar cards above report modules when needed.
 
 = 1.18.3 =
 * Added a progress notice with an animated activity indicator while the PDF report is being built before the browser save prompt appears.

@@ -1,13 +1,48 @@
 /**
  * Speed Analyzer – Admin Scripts
- * admin-scripts.js Version: v0.796
+ * admin-scripts.js Version: v0.797
  */
 
  // Expose & log the running admin-scripts version
-window.WPSA_ADMIN_JS_VER = 'v0.796';
+window.WPSA_ADMIN_JS_VER = 'v0.797';
 try { console.info('admin-scripts.js', window.WPSA_ADMIN_JS_VER); } catch(e){}
 
 jQuery(function($){
+    var WPSA_SIDEBARS_TOP_KEY = 'wpsa:sidebarsOnTop:v1';
+
+    function wpsa_applySidebarsTopPreference(enabled) {
+      $('.wpsa-layout').toggleClass('wpsa-sidebars-on-top', !!enabled);
+    }
+
+    function wpsa_initSidebarsTopToggle() {
+      var $toggle = $('#wpsa-sidebars-top-toggle');
+      if (!$toggle.length) return;
+
+      var enabled = false;
+      try {
+        enabled = window.localStorage.getItem(WPSA_SIDEBARS_TOP_KEY) === '1';
+      } catch(e) {}
+
+      $toggle.prop('checked', enabled);
+      wpsa_applySidebarsTopPreference(enabled);
+
+      $(document)
+        .off('change.wpsaSidebarsTop', '#wpsa-sidebars-top-toggle')
+        .on('change.wpsaSidebarsTop', '#wpsa-sidebars-top-toggle', function () {
+          var isEnabled = $(this).is(':checked');
+          wpsa_applySidebarsTopPreference(isEnabled);
+          try {
+            if (isEnabled) {
+              window.localStorage.setItem(WPSA_SIDEBARS_TOP_KEY, '1');
+            } else {
+              window.localStorage.removeItem(WPSA_SIDEBARS_TOP_KEY);
+            }
+          } catch(e) {}
+        });
+    }
+
+    wpsa_initSidebarsTopToggle();
+
     function wpsa_getQueryInt(name) {
   try {
     var p = new URLSearchParams(window.location.search || '');
@@ -1140,13 +1175,18 @@ if (effectiveUrl) {
 
 
         
-        // Live-enable the Load button as soon as the user types a test #
+        // Live-enable the Load button as soon as the user enters a test #
         $(document)
-          .off('input.wpsaLoadInput change.wpsaLoadInput')
-          .on('input.wpsaLoadInput change.wpsaLoadInput', '#wpsa-loadtest-input', function () {
+          .off('input.wpsaLoadInput change.wpsaLoadInput keyup.wpsaLoadInput paste.wpsaLoadInput')
+          .on('input.wpsaLoadInput change.wpsaLoadInput keyup.wpsaLoadInput paste.wpsaLoadInput', '#wpsa-loadtest-input', function (event) {
             $('#wpsa-loadtest-msg').text('');   // clear any prior message
-            wpsa_updateLoadBtnState();
+            if (event && event.type === 'paste') {
+              setTimeout(wpsa_updateLoadBtnState, 0);
+            } else {
+              wpsa_updateLoadBtnState();
+            }
           });
+        setTimeout(wpsa_updateLoadBtnState, 0);
 
         
         // If any PDF quota label is present anywhere on the page, keep it fresh
@@ -1506,11 +1546,10 @@ function wpsa_updateLoadBtnState() {
 
   var $msg = jQuery('#wpsa-loadtest-msg');
 
-  var canHere = (typeof wpsa_canLoadTestHere === 'function') ? !!wpsa_canLoadTestHere() : false;
-  var hasNumber = !!(jQuery('#wpsa-loadtest-input').val() || '').toString().trim();
+  var hasNumber = parseInt(jQuery('#wpsa-loadtest-input').val(), 10) > 0;
 
-  // Enable only if the screen can actually render loaded results AND a number is provided
-  var enable = canHere && hasNumber;
+  // Enable for a valid number; the click guard still blocks screens that cannot paint results.
+  var enable = hasNumber;
 
   // Never show a false-positive "Loaded."
   if (!enable && $msg.length && ($msg.text() || '').trim() === 'Loaded.') {
@@ -1620,7 +1659,7 @@ function wpsa_updateLoadBtnState() {
         
       // Hard block if this screen can't paint loaded results (no skeleton)
     if (typeof wpsa_canLoadTestHere === 'function' && !wpsa_canLoadTestHere()) {
-      jQuery('#wpsa-loadtest-msg').text('Load is not available on this screen yet.');
+      jQuery('#wpsa-loadtest-msg').text('Load needs the report area to be available. Run one speed audit once, then try Load test # again.');
       return;
     }
     
