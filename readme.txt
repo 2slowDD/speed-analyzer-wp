@@ -5,7 +5,7 @@ Tags: performance, speed, ttfb, pagespeed
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 1.18.4
+Stable tag: 1.18.5
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -122,6 +122,9 @@ The server will return a “quota exceeded” error. You can either wait until m
 13. Editor SA metrics
  
 == Changelog ==
+
+= 1.18.5 =
+* Replaced Perfmatters mentions in the generated PDF report with AI Assets Scanner and linked the AI Assets Scanner product page.
 
 = 1.06 =
 * Bumped version for avoiding trademark issues for WordPress.org release

@@ -46,8 +46,8 @@ jQuery(function($){
     }
 
     const wpsaPdfCodeUnloaderLink = '<a href="https://wpservice.pro/our-products/code-unloader/" target="_blank" rel="noopener">Code Unloader</a>';
-    const wpsaPdfPerfmattersLink = '<a href="https://wpservice.pro/tools-of-the-trade/the-guide-to-perfmatters-settings/" target="_blank" rel="noopener">Perfmatters</a>';
-    const wpsaPdfUnloadToolsLinks = `${wpsaPdfCodeUnloaderLink} or ${wpsaPdfPerfmattersLink}`;
+    const wpsaPdfAiAssetsScannerLink = '<a href="https://wpservice.pro/our-products/ai-assets-scanner/" target="_blank" rel="noopener">AI Assets Scanner</a>';
+    const wpsaPdfUnloadToolsLinks = `${wpsaPdfCodeUnloaderLink} or ${wpsaPdfAiAssetsScannerLink}`;
     const wpsaPdfFlyingPressWpRocketLink = '<a href="https://wpservice.pro/tools-of-the-trade/flyingpress-vs-wp-rocket-compare/" target="_blank" rel="noopener">FlyingPress or WP Rocket</a>';
     
    // --- PDF branding helpers (robust to Document or Element roots) ---
@@ -904,7 +904,7 @@ jQuery(function($){
         
           // shared recommendation
          const $rec = $('<p style="margin:6px 0 0; font-size:0.95em; color:#444;">' +
-            'Recommended tools: ' + wpsaPdfCodeUnloaderLink + ' or ' + wpsaPdfPerfmattersLink + '.' +
+            'Recommended tools: ' + wpsaPdfCodeUnloaderLink + ' or ' + wpsaPdfAiAssetsScannerLink + '.' +
           '</p>');
         
           $page2.append($jsP, $cssP, $rec);

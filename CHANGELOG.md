@@ -3,6 +3,12 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.18.5]
+### Changed
+- Replaced Perfmatters mentions in the generated PDF report with AI Assets Scanner and linked the AI Assets Scanner product page.
+
+---
+
 ## [1.18.3]
 ### Added
 - PDF generation now shows a progress notice with an animated activity indicator while the report is being built before the browser save prompt appears.

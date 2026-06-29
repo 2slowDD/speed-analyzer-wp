@@ -8,6 +8,7 @@ const css = fs.readFileSync(path.join(root, 'admin-styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'admin-scripts.js'), 'utf8');
 const readme = fs.readFileSync(path.join(root, 'readme.txt'), 'utf8');
 const readmeMd = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+const reportJs = fs.readFileSync(path.join(root, 'report-scripts.js'), 'utf8');
 
 const toggleIndex = php.indexOf('id="wpsa-sidebars-top-toggle"');
 const navIndex = php.indexOf('class="wpsa-sidebar-nav"');
@@ -31,13 +32,16 @@ assert(js.includes("toggleClass('wpsa-sidebars-on-top'"), 'Missing layout class 
 assert(js.includes("change.wpsaSidebarsTop"), 'Missing checkbox change handler');
 assert(js.includes('wpsa_initSidebarsTopToggle();'), 'Missing sidebars toggle init call');
 
-assert(php.includes('* Version:         1.18.4'), 'Plugin header should be bumped to 1.18.4');
-assert(php.includes("define( 'SAWP_VERSION', '1.18.4' );"), 'SAWP_VERSION should be bumped to 1.18.4');
-assert(readme.includes('Stable tag: 1.18.4'), 'readme.txt stable tag should be bumped');
-assert(readme.includes('= 1.18.4 ='), 'readme.txt changelog should include 1.18.4');
-assert(readmeMd.includes('Version 1.18.4'), 'README badge should be bumped');
-assert(readmeMd.includes('Version: 1.18.4'), 'README version line should be bumped');
+assert(php.includes('* Version:         1.18.5'), 'Plugin header should be bumped to 1.18.5');
+assert(php.includes("define( 'SAWP_VERSION', '1.18.5' );"), 'SAWP_VERSION should be bumped to 1.18.5');
+assert(readme.includes('Stable tag: 1.18.5'), 'readme.txt stable tag should be bumped');
+assert(readme.includes('= 1.18.5 ='), 'readme.txt changelog should include 1.18.5');
+assert(readmeMd.includes('Version 1.18.5'), 'README badge should be bumped');
+assert(readmeMd.includes('Version: 1.18.5'), 'README version line should be bumped');
 assert(js.includes('admin-scripts.js Version: v0.797'), 'admin-scripts marker should be bumped');
 assert(css.includes('admin-styles.css - Version: v0.746'), 'admin-styles marker should be bumped');
+assert(!/Perfmatters/i.test(reportJs), 'PDF report script should not mention Perfmatters');
+assert(reportJs.includes('https://wpservice.pro/our-products/ai-assets-scanner/'), 'PDF report script should link AI Assets Scanner product page');
+assert(reportJs.includes('AI Assets Scanner'), 'PDF report script should mention AI Assets Scanner');
 
 console.log('OK sidebar-top-toggle');
