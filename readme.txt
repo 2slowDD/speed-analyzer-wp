@@ -128,6 +128,9 @@ The server will return a “quota exceeded” error. You can either wait until m
 * TBT uses Lighthouse's per-device thresholds: 200/600 ms on mobile, 150/350 ms on desktop.
 * The Core Web Vitals (field) assessment continues to report INP, which is the Core Web Vital measured from real users. TBT has no field equivalent.
 * Scheduled alerts can now watch TBT. An existing INP alert keeps working and is migrated automatically.
+* Fixed: on the Compare Results table, tests run with 1.19.0 showed N/A for LCP, FCP, CLS and TBT. Re-run a test to record it correctly; rows already stored keep the old values.
+* Fixed: re-running a test no longer leaves a stale Total Blocking Time value behind for that test.
+* Fixed: the note about pre-1.19 interaction data now lines up with the results table.
 * Fixed: the Core Web Vitals (field) block showed '--' for every metric on pages that did have real-user data. Where Google publishes LCP, CLS and load timings for a page but not enough interaction data for INP, the overall assessment cannot be calculated - but the individual measurements are real and are now shown. The assessment itself still reads N/A in that case.
 * Fixed: the Core Web Vitals column on the Posts and Pages lists stayed blank for pages that were passing.
 * Fixed: values above 1000 ms were misread when PageSpeed Insights formatted them with a thousands separator.

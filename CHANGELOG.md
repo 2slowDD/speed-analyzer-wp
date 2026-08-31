@@ -11,6 +11,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Advice text for this metric now describes main-thread blocking and long tasks rather than interaction latency.
 
 ### Fixed
+- **The Compare tab showed N/A for LCP, FCP, CLS and TBT on tests run with 1.19.0.** Total Blocking Time is written on its own line in the results log, but the writer sanitised the two-line payload with a filter that collapses newlines, welding both lines into one that neither parser could read. Scheduled runs were unaffected. Rows already recorded keep the welded line and still read N/A; re-running the test records it correctly.
+- Re-logging a test no longer leaves a stale Total Blocking Time line behind in that block.
+- The note explaining that pre-1.19 interaction data was measured as INP now aligns with the results table instead of the page edge.
+### Fixed
 - **The Core Web Vitals (field) block showed `--` for every metric on pages where real user data existed.** When CrUX publishes a page-level record that carries LCP, CLS, FCP and TTFB but no INP, the three-of-three assessment cannot be computed and is reported as N/A - but the p75 values are real. The results-log reader matched only PASSED or FAILED, so it discarded the whole line, including four measurements it had just written. The assessment itself still reads N/A in that case; no verdict is invented.
 - The Posts/Pages speed column could not read the Core Web Vitals scope label written for page-scope results, so the column stayed blank for passing pages.
 - Millisecond values above 1000 were parsed as decimals when PageSpeed Insights formatted them with a thousands separator, so "1,910 ms" was read as 1.91 ms. This affected the results log as well as the on-screen colour coding.
