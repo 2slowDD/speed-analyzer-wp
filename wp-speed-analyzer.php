@@ -1172,7 +1172,7 @@ function wpsa_render_tool_page() {
 
         <div class="wpsa-feedback-panel wpsa-product-card">
           <h2><?php esc_html_e( 'AI Assets Scanner', 'speed-analyzer' ); ?></h2>
-          <p><?php esc_html_e( 'Improve your speed with the groundbreaking automatic AI Assets Scanner unloading for smarter asset rules with less manual work.', 'speed-analyzer' ); ?></p>
+          <p><?php esc_html_e( 'Improve your speed with the groundbreaking automatic AI Assets Scanner unloading.', 'speed-analyzer' ); ?></p>
           <a href="https://wpservice.pro/our-products/ai-assets-scanner/"
              target="_blank"
              rel="noopener noreferrer"
