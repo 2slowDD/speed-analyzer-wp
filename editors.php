@@ -422,14 +422,20 @@ function wpsa_editor_parse_last_result_for_url( $url ) {
                 }
             }
             
-            // CWV Page/Origin (Mobile)
-            if ( null === $cwv_m_status && preg_match( '#^Module\s+5\s+CWV\s+(Page|Origin)\s*\(Mobile\)\s*:\s*.*\bAssessment:\s*(PASSED|FAILED)\b#i', $bl, $m ) ) {
+            // CWV Page/URL/Origin (Mobile)
+            // "URL" is what diagnostics.php:591 and schedule.php:532 rewrite every healthy
+            // page-scope line to, so omitting it left this column blind to passing pages.
+            // N/A is deliberately NOT accepted: the ternary below collapses anything that
+            // is not "passed" to "failed", so admitting N/A would print a false "Failed"
+            // for every site that simply has no CrUX field data. No match leaves the
+            // status null, which renders "--" - the correct display for "no verdict".
+            if ( null === $cwv_m_status && preg_match( '#^Module\s+5\s+CWV\s+(Page|URL|Origin)\s*\(Mobile\)\s*:\s*.*\bAssessment:\s*(PASSED|FAILED)\b#i', $bl, $m ) ) {
                 $cwv_m_scope  = strtolower( $m[1] );
                 $cwv_m_status = strtolower( $m[2] ) === 'passed' ? 'passed' : 'failed';
             }
 
-            // CWV Page/Origin (Desktop)
-            if ( null === $cwv_d_status && preg_match( '#^Module\s+5\s+CWV\s+(Page|Origin)\s*\(Desktop\)\s*:\s*.*\bAssessment:\s*(PASSED|FAILED)\b#i', $bl, $m ) ) {
+            // CWV Page/URL/Origin (Desktop) - see the Mobile note above, including why N/A stays out.
+            if ( null === $cwv_d_status && preg_match( '#^Module\s+5\s+CWV\s+(Page|URL|Origin)\s*\(Desktop\)\s*:\s*.*\bAssessment:\s*(PASSED|FAILED)\b#i', $bl, $m ) ) {
                 $cwv_d_scope  = strtolower( $m[1] );
                 $cwv_d_status = strtolower( $m[2] ) === 'passed' ? 'passed' : 'failed';
             }
@@ -739,12 +745,15 @@ function wpsa_editor_render_speed_column( $col, $post_id ) {
         $cwv_m_label = ( 'passed' === $cwv_m_status ) ? 'Passed' : ( ( 'failed' === $cwv_m_status ) ? 'Failed' : '--' );
         $cwv_d_label = ( 'passed' === $cwv_d_status ) ? 'Passed' : ( ( 'failed' === $cwv_d_status ) ? 'Failed' : '--' );
 
-        $cwv_m_scope = isset( $r['cwv_m_scope'] ) && in_array( $r['cwv_m_scope'], [ 'page', 'origin' ], true )
-            ? ( 'page' === $r['cwv_m_scope'] ? 'URL' : 'origin' )
+        // 'url' is the current on-disk spelling; 'page' is the pre-1.18 spelling for the
+        // same scope. Both display as "URL". Without 'url' in the allowlist the parse
+        // above would succeed and the scope would still render as "--".
+        $cwv_m_scope = isset( $r['cwv_m_scope'] ) && in_array( $r['cwv_m_scope'], [ 'page', 'url', 'origin' ], true )
+            ? ( 'origin' === $r['cwv_m_scope'] ? 'origin' : 'URL' )
             : '--';
 
-        $cwv_d_scope = isset( $r['cwv_d_scope'] ) && in_array( $r['cwv_d_scope'], [ 'page', 'origin' ], true )
-            ? ( 'page' === $r['cwv_d_scope'] ? 'URL' : 'origin' )
+        $cwv_d_scope = isset( $r['cwv_d_scope'] ) && in_array( $r['cwv_d_scope'], [ 'page', 'url', 'origin' ], true )
+            ? ( 'origin' === $r['cwv_d_scope'] ? 'origin' : 'URL' )
             : '--';
 
 

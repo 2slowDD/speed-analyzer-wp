@@ -1299,7 +1299,12 @@ add_action( 'wp_ajax_wpsa_get_cwv_assessment', function () {
     $raw_json   = '';
 
     // Accept old logs ("Page") + new logs ("URL") + Origin.
-    $line_re = '/^\s*Module\s+5\s+CWV\s+(Page|URL|Origin)\s+\(' . preg_quote( $label, '/' ) . '\):\s*Assessment:\s*(PASSED|FAILED)\b/i';
+    // N/A is a legitimate verdict, not an absence of data. CrUX can publish a page-scope
+    // record carrying real LCP/CLS/FCP/TTFB but no INP, in which case the three-of-three
+    // assessment cannot be computed while those p75 values are real and worth showing.
+    // Excluding N/A here threw those measurements away and rendered the whole block "--".
+    // schedule.php:714/737 has always accepted N/A; this line was the drift.
+    $line_re = '/^\s*Module\s+5\s+CWV\s+(Page|URL|Origin)\s+\(' . preg_quote( $label, '/' ) . '\):\s*Assessment:\s*(PASSED|FAILED|N\/A)\b/i';
     $raw_re  = '/^\s*Module\s+5\s+CWV\s+(Page|URL|Origin)\s+\(' . preg_quote( $label, '/' ) . '\)\s+RAW:\s*(\{.*\})\s*$/i';
 
 
@@ -1335,16 +1340,16 @@ add_action( 'wp_ajax_wpsa_get_cwv_assessment', function () {
        // Always return a stable shape (same keys), even if values are missing.
     $p75 = wpsa_parse_cwv_p75_from_line( '' );
 
-    if ( $assessment ) {
-        // Find the CWV summary line inside the same test block and parse p75
-        for ( $k = $start; $k < $end; $k++ ) {
-            $ln = (string) $lines[ $k ];
+    // Not gated on $assessment: an "Assessment: N/A" line still carries real p75 values,
+    // and gating here is what discarded them. The loop is already guarded by $line_re.
+    // Find the CWV summary line inside the same test block and parse p75
+    for ( $k = $start; $k < $end; $k++ ) {
+        $ln = (string) $lines[ $k ];
 
-            // Match the summary line for the same strategy/device
-            if ( preg_match( $line_re, $ln ) ) {
-                $p75 = wpsa_parse_cwv_p75_from_line( $ln );
-                break;
-            }
+        // Match the summary line for the same strategy/device
+        if ( preg_match( $line_re, $ln ) ) {
+            $p75 = wpsa_parse_cwv_p75_from_line( $ln );
+            break;
         }
     }
 
