@@ -32,3 +32,4 @@ build/
 
 # SFTP deploy packages (staging only - never committed)
 /1.18.6/
+/1.19.0/
