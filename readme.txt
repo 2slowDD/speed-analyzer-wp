@@ -3,9 +3,9 @@ Contributors: dalibord
 Donate link: https://wpservice.pro/donate
 Tags: performance, speed, ttfb, pagespeed
 Requires at least: 5.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 1.18.5
+Stable tag: 1.18.6
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -122,6 +122,13 @@ The server will return a “quota exceeded” error. You can either wait until m
 13. Editor SA metrics
  
 == Changelog ==
+
+= 1.18.6 =
+* Coding-standards and security pass: every Plugin Check error resolved across the plugin (output escaping, input sanitization and unslashing, prepared SQL, translator comments, direct file access protection).
+* Chart.js is now bundled with the plugin instead of being loaded from a third-party CDN.
+* Debug logging is now gated behind WP_DEBUG and WP_DEBUG_LOG, so production sites no longer collect plugin log noise on every cron tick.
+* Generating a PDF report no longer makes the browser show "Page Unresponsive": the build runs in stages with progress feedback and a smoother activity indicator.
+* Tested up to WordPress 7.1.
 
 = 1.18.5 =
 * Replaced Perfmatters mentions in the generated PDF report with AI Assets Scanner and linked the AI Assets Scanner product page.

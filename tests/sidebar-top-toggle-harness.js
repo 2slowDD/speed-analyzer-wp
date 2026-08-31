@@ -32,12 +32,21 @@ assert(js.includes("toggleClass('wpsa-sidebars-on-top'"), 'Missing layout class 
 assert(js.includes("change.wpsaSidebarsTop"), 'Missing checkbox change handler');
 assert(js.includes('wpsa_initSidebarsTopToggle();'), 'Missing sidebars toggle init call');
 
-assert(php.includes('* Version:         1.18.5'), 'Plugin header should be bumped to 1.18.5');
-assert(php.includes("define( 'SAWP_VERSION', '1.18.5' );"), 'SAWP_VERSION should be bumped to 1.18.5');
-assert(readme.includes('Stable tag: 1.18.5'), 'readme.txt stable tag should be bumped');
-assert(readme.includes('= 1.18.5 ='), 'readme.txt changelog should include 1.18.5');
-assert(readmeMd.includes('Version 1.18.5'), 'README badge should be bumped');
-assert(readmeMd.includes('Version: 1.18.5'), 'README version line should be bumped');
+// Version lockstep. The plugin header is the single source of truth; every other
+// surface must agree with it. Deriving the version here (instead of re-pinning a
+// literal) keeps this release gate working across bumps without edits.
+const versionMatch = php.match(/^ \* Version:\s+(\d+\.\d+\.\d+[a-z]?)\s*$/m);
+assert(versionMatch, 'Plugin header must declare a Version');
+const version = versionMatch[1];
+
+assert(
+  php.includes(`define( 'SAWP_VERSION', '${version}' );`),
+  `SAWP_VERSION should match the plugin header (${version})`
+);
+assert(readme.includes(`Stable tag: ${version}`), `readme.txt stable tag should be ${version}`);
+assert(readme.includes(`= ${version} =`), `readme.txt changelog should have a ${version} entry`);
+assert(readmeMd.includes(`Version ${version}`), `README badge should be ${version}`);
+assert(readmeMd.includes(`Version: ${version}`), `README version line should be ${version}`);
 assert(js.includes('admin-scripts.js Version: v0.797'), 'admin-scripts marker should be bumped');
 assert(css.includes('admin-styles.css - Version: v0.746'), 'admin-styles marker should be bumped');
 assert(!/Perfmatters/i.test(reportJs), 'PDF report script should not mention Perfmatters');

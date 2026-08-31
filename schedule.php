@@ -1102,6 +1102,7 @@ function wpsa_schedule_send_batch_email( $batch, $settings, $results_log ) {
 
        // Subject: Speed Analyzer – scheduled test results (X tests on {local datetime})
     $subject = sprintf(
+        /* translators: 1: number of tests in the batch, 2: local date and time the batch ran. */
         __( 'Speed Analyzer – scheduled test results (%1$d test(s) on %2$s)', 'speed-analyzer' ),
         $count,
         $batch_local
@@ -1303,6 +1304,7 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
         }
 
         $body .= '<li style="margin:0 0 8px 0;">';
+        /* translators: %d: test number. */
         $body .= '<strong>' . esc_html( sprintf( __( 'Test #%d', 'speed-analyzer' ), $hit_test_no ) ) . ':</strong><br />';
 
         foreach ( $reasons as $r ) {
@@ -1381,6 +1383,7 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
         $message = isset( $item['message'] ) ? $item['message'] : '';
 
         $test_heading = $test_no
+            /* translators: %d: test number. */
             ? sprintf( __( 'Test #%d (scheduled)', 'speed-analyzer' ), $test_no )
             : __( 'Scheduled test (no test number logged)', 'speed-analyzer' );
 
@@ -1776,7 +1779,7 @@ function wpsa_schedule_register_cron() {
      function wpsa_run_scheduled_tests() {
         $settings = get_option( 'wpsa_schedule_settings', array() );
         if ( empty( $settings['enabled'] ) || empty( $settings['urls'] ) || ! is_array( $settings['urls'] ) ) {
-            error_log( 'WPSA schedule: bail – disabled or no URLs.' );
+            wpsa_debug_log( 'WPSA schedule: bail – disabled or no URLs.' );
     
             // If the schedule was disabled mid-batch, clear any stale state/lock.
             delete_option( 'wpsa_schedule_state' );
@@ -1815,11 +1818,11 @@ function wpsa_schedule_register_cron() {
             // Safety net: initialize next_run from current settings and bail until the next tick.
             $next_run = wpsa_schedule_calculate_next_run( $freq, $time );
             update_option( 'wpsa_schedule_next_run', $next_run );
-            error_log( 'WPSA schedule: initialized next_run at ' . gmdate( 'c', $next_run ) );
+            wpsa_debug_log( 'WPSA schedule: initialized next_run at ' . gmdate( 'c', $next_run ) );
             return;
         }
 
-        error_log(
+        wpsa_debug_log(
             sprintf(
                 'WPSA schedule: fired at %s, next_run=%s (delta=%ds)',
                 gmdate( 'c', $now ),
@@ -1830,13 +1833,13 @@ function wpsa_schedule_register_cron() {
 
         // Too early (more than 2 minutes before the scheduled time) → wait.
         if ( $now < ( $next_run - 120 ) ) {
-            error_log( 'WPSA schedule: too early, skipping.' );
+            wpsa_debug_log( 'WPSA schedule: too early, skipping.' );
             return;
         }
 
         // Missed by more than an hour → push schedule forward without running.
         if ( $now > ( $next_run + HOUR_IN_SECONDS ) ) {
-            error_log( 'WPSA schedule: missed by >1h, pushing forward without running.' );
+            wpsa_debug_log( 'WPSA schedule: missed by >1h, pushing forward without running.' );
             $next_run = wpsa_schedule_calculate_next_run( $freq, $time, $now );
             update_option( 'wpsa_schedule_next_run', $next_run );
             return;
@@ -1868,8 +1871,7 @@ function wpsa_schedule_register_cron() {
                             continue;
                         }
 
-                        // phpcs:ignore WordPress.VIP.FileSystemWritesDisallow.file_ops_delete
-                        @unlink( $file_path );
+                        wp_delete_file( $file_path );
                     }
                 }
             }
@@ -1896,7 +1898,7 @@ function wpsa_schedule_register_cron() {
         }
 
         if ( empty( $urls ) ) {
-            error_log( 'WPSA schedule: no valid URLs after normalization.' );
+            wpsa_debug_log( 'WPSA schedule: no valid URLs after normalization.' );
             return;
         }
 
@@ -1952,7 +1954,7 @@ function wpsa_schedule_register_cron() {
         $has_state = true;
 
 
-        error_log(
+        wpsa_debug_log(
             sprintf(
                 'WPSA schedule: starting new batch with %d URL(s) at %s.',
                 count( $urls ),
@@ -1960,7 +1962,7 @@ function wpsa_schedule_register_cron() {
             )
         );
     } else {
-        error_log(
+        wpsa_debug_log(
             sprintf(
                 'WPSA schedule: resuming existing batch at index %d.',
                 isset( $state['index'] ) ? (int) $state['index'] : 0
@@ -1999,7 +2001,7 @@ function wpsa_schedule_register_cron() {
     $lock_ttl      = 15 * MINUTE_IN_SECONDS; // instead of HOUR_IN_SECONDS
 
     if ( $existing_lock && is_numeric( $existing_lock ) && ( $now - (int) $existing_lock ) < $lock_ttl ) {
-        error_log( 'WPSA schedule: another batch appears to be running (lock in place), skipping this tick.' );
+        wpsa_debug_log( 'WPSA schedule: another batch appears to be running (lock in place), skipping this tick.' );
         return;
     }
     update_option( $lock_key, $now );
@@ -2037,7 +2039,7 @@ function wpsa_schedule_register_cron() {
     $total_urls = count( $urls );
 
     if ( ! $total_urls ) {
-        error_log( 'WPSA schedule: batch state has no URLs, clearing.' );
+        wpsa_debug_log( 'WPSA schedule: batch state has no URLs, clearing.' );
         delete_option( 'wpsa_schedule_state' );
         delete_option( $lock_key );
         return;
@@ -2069,13 +2071,13 @@ function wpsa_schedule_register_cron() {
 
         // Stop this tick if we've hit the per-tick URL limit.
         if ( $processed_this_tick >= $chunk_size ) {
-            error_log( sprintf( 'WPSA schedule: chunk limit reached (%d URL(s) this tick).', $chunk_size ) );
+            wpsa_debug_log( sprintf( 'WPSA schedule: chunk limit reached (%d URL(s) this tick).', $chunk_size ) );
             break;
         }
 
         // Stop this tick if we've exhausted our PHP time budget.
         if ( ( microtime( true ) - $batch_start ) >= $php_budget ) {
-            error_log( 'WPSA schedule: PHP time budget exhausted for this tick, stopping early.' );
+            wpsa_debug_log( 'WPSA schedule: PHP time budget exhausted for this tick, stopping early.' );
             break;
         }
 
@@ -2174,7 +2176,7 @@ function wpsa_schedule_register_cron() {
                         'test_no' => null,
                         'message' => 'Quota check failed for this test.',
                     );
-                    error_log( 'WPSA schedule: quota check failed for ' . $url );
+                    wpsa_debug_log( 'WPSA schedule: quota check failed for ' . $url );
 
                     $urls[ $idx ]['phase']    = 3;
                     $urls[ $idx ]['success']  = false;
@@ -2198,7 +2200,7 @@ function wpsa_schedule_register_cron() {
                         'test_no' => null,
                         'message' => 'Daily limit reached before running this test.',
                     );
-                    error_log( 'WPSA schedule: daily limit reached before running ' . $url );
+                    wpsa_debug_log( 'WPSA schedule: daily limit reached before running ' . $url );
 
                     $urls[ $idx ]['phase']    = 3;
                     $urls[ $idx ]['success']  = false;
@@ -2243,7 +2245,7 @@ function wpsa_schedule_register_cron() {
                     $urls[ $idx ]['message']  = $human_msg;
                     $urls[ $idx ]['m1_done']  = false;
 
-                    error_log(
+                    wpsa_debug_log(
                         sprintf(
                             'WPSA schedule: Module 1 error for %1$s – %2$s: %3$s',
                             $url,
@@ -2275,7 +2277,7 @@ function wpsa_schedule_register_cron() {
                     $urls[ $idx ]['message']  = 'Test run failed (Module 1 did not complete).';
                     $urls[ $idx ]['m1_done']  = false;
 
-                    error_log( 'WPSA schedule: Module 1 failed for ' . $url );
+                    wpsa_debug_log( 'WPSA schedule: Module 1 failed for ' . $url );
 
                     // Persist per-URL progress so partial ticks don't repeat work.
                     $state['urls']  = $urls;
@@ -2302,12 +2304,12 @@ function wpsa_schedule_register_cron() {
                 $state['items'] = $items;
                 update_option( 'wpsa_schedule_state', $state );
 
-                error_log( 'WPSA schedule: [' . $url . '] Module 1 completed and state persisted (m1_done=1).' );
+                wpsa_debug_log( 'WPSA schedule: [' . $url . '] Module 1 completed and state persisted (m1_done=1).' );
             }
 
             // If Module 1 was just done and we're tight on time, postpone Modules 2–4 to a later tick.
             if ( ( microtime( true ) - $batch_start ) >= $php_budget ) {
-                error_log( 'WPSA schedule: time budget reached after Module 1 for ' . $url . ', deferring Modules 2–4.' );
+                wpsa_debug_log( 'WPSA schedule: time budget reached after Module 1 for ' . $url . ', deferring Modules 2–4.' );
                 // Do not increment $processed_this_tick yet; this URL will resume in Phase 0 next tick (m1_done=true).
                 // Persist state again for safety.
                 $state['urls']  = $urls;
@@ -2317,23 +2319,23 @@ function wpsa_schedule_register_cron() {
             }
 
             // Run Modules 2–4 (only once per URL).
-            error_log( 'WPSA schedule: [' . $url . '] starting Module 2' );
+            wpsa_debug_log( 'WPSA schedule: [' . $url . '] starting Module 2' );
             try {
                 if ( ! wpsa_run_module2_scheduled( $url ) ) {
-                    error_log( 'WPSA schedule: Module 2 scheduled runner returned no data for ' . $url );
+                    wpsa_debug_log( 'WPSA schedule: Module 2 scheduled runner returned no data for ' . $url );
                 }
             } catch ( \Throwable $e ) {
-                error_log( 'WPSA schedule: Module 2 failed for ' . $url . ' – ' . $e->getMessage() );
+                wpsa_debug_log( 'WPSA schedule: Module 2 failed for ' . $url . ' – ' . $e->getMessage() );
             }
-            error_log( 'WPSA schedule: [' . $url . '] finished Module 2' );
+            wpsa_debug_log( 'WPSA schedule: [' . $url . '] finished Module 2' );
 
-            error_log( 'WPSA schedule: [' . $url . '] starting Module 3/4' );
+            wpsa_debug_log( 'WPSA schedule: [' . $url . '] starting Module 3/4' );
             try {
                 wpsa_module3_4_autoload_cache( $wpdb, $results_log, $url );
             } catch ( \Throwable $e ) {
-                error_log( 'WPSA schedule: Module 3/4 failed for ' . $url . ' – ' . $e->getMessage() );
+                wpsa_debug_log( 'WPSA schedule: Module 3/4 failed for ' . $url . ' – ' . $e->getMessage() );
             }
-            error_log( 'WPSA schedule: [' . $url . '] finished Module 3/4' );
+            wpsa_debug_log( 'WPSA schedule: [' . $url . '] finished Module 3/4' );
 
             // Move this URL to Phase 1 (PSI + Module 6) for a later tick.
             $urls[ $idx ]['phase']   = 1;
@@ -2357,13 +2359,13 @@ function wpsa_schedule_register_cron() {
                 $test_no_for_attach = null;
             }
 
-            error_log( 'WPSA schedule: [' . $url . '] starting Module 5 (scheduled)' );
+            wpsa_debug_log( 'WPSA schedule: [' . $url . '] starting Module 5 (scheduled)' );
             try {
                 wpsa_schedule_log_module5( $url, $results_log, $test_no_for_attach );
             } catch ( \Throwable $e ) {
-                error_log( 'WPSA schedule: Module 5 (scheduled logger) failed for ' . $url . ' – ' . $e->getMessage() );
+                wpsa_debug_log( 'WPSA schedule: Module 5 (scheduled logger) failed for ' . $url . ' – ' . $e->getMessage() );
             }
-            error_log( 'WPSA schedule: [' . $url . '] finished Module 5 (scheduled)' );
+            wpsa_debug_log( 'WPSA schedule: [' . $url . '] finished Module 5 (scheduled)' );
 
             // Use the Test # captured right after Module 1 ran for this URL for email/summary as well.
             $test_no = isset( $urls[ $idx ]['test_no'] ) ? (int) $urls[ $idx ]['test_no'] : null;
@@ -2766,7 +2768,7 @@ function wpsa_handle_schedule_form() {
 
     // URLs per cron tick (chunk size): 2–5, default 3.
    $chunk_raw = isset( $_POST['wpsa_schedule_chunk_size'] )
-    ? (int) wp_unslash( $_POST['wpsa_schedule_chunk_size'] )
+    ? intval( wp_unslash( $_POST['wpsa_schedule_chunk_size'] ) )
     : 3;
     if ( $chunk_raw < 2 || $chunk_raw > 5 ) {
         $chunk_raw = 3;
@@ -2776,7 +2778,7 @@ function wpsa_handle_schedule_form() {
     $notify    = ! empty( $_POST['wpsa_schedule_notify'] );
 
     $email_raw = isset( $_POST['wpsa_schedule_email'] )
-        ? wp_unslash( $_POST['wpsa_schedule_email'] )
+        ? sanitize_text_field( wp_unslash( $_POST['wpsa_schedule_email'] ) )
         : '';
     $email = sanitize_email( $email_raw );
     if ( $notify && '' === $email ) {
@@ -2830,7 +2832,7 @@ function wpsa_handle_schedule_form() {
     // Note: already parsed above as $alert_thresh_device_scope, so do not re-parse/overwrite here.
 
        $th_value_raw = isset( $_POST['wpsa_schedule_alert_thresh_value'] )
-        ? wp_unslash( $_POST['wpsa_schedule_alert_thresh_value'] )
+        ? sanitize_text_field( wp_unslash( $_POST['wpsa_schedule_alert_thresh_value'] ) )
         : '';
 
     // Keep previous saved value if POST comes in empty/invalid (prevents unwanted fallback to defaults).
@@ -2903,13 +2905,14 @@ function wpsa_handle_schedule_form() {
 
 
     $urls = array();
-    if ( isset( $_POST['wpsa_schedule_urls'] ) && is_array( $_POST['wpsa_schedule_urls'] ) ) {
-        foreach ( $_POST['wpsa_schedule_urls'] as $row ) {
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- structured POST map; the outer array is unslashed here and every leaf URL is sanitized with esc_url_raw() inside the loop, per the walk-and-sanitize pattern for nested request maps.
+    $urls_post = isset( $_POST['wpsa_schedule_urls'] ) ? (array) wp_unslash( $_POST['wpsa_schedule_urls'] ) : array();
+    if ( ! empty( $urls_post ) ) {
+        foreach ( $urls_post as $row ) {
             if ( ! is_array( $row ) ) {
                 continue;
             }
-            $url_raw = isset( $row['url'] ) ? wp_unslash( $row['url'] ) : '';
-            $url     = esc_url_raw( $url_raw );
+            $url = esc_url_raw( isset( $row['url'] ) ? (string) $row['url'] : '' );
             if ( '' === $url ) {
                 continue;
             }
@@ -3056,6 +3059,7 @@ function wpsa_schedule_get_last_batch_html() {
             $to = ! empty( $last_batch['email_to'] ) ? (string) $last_batch['email_to'] : '';
             if ( $to && is_email( $to ) ) {
                 echo '<p class="description" style="margin-top:6px; font-weight:600; color: #3c434a;">' .
+                    /* translators: %s: recipient email address. */
                     esc_html( sprintf( __( 'Email sent to %s.', 'speed-analyzer' ), $to ) ) .
                 '</p>';
             } else {
@@ -3606,6 +3610,7 @@ function wpsa_render_schedule_panel_ui() {
                             data-nonce="<?php echo esc_attr( $ajax_nonce ); ?>"
                         >
                             <div id="wpsa-schedule-last-batch-inner">
+                                <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_schedule_get_last_batch_html() returns markup whose dynamic parts (url, message, icon, recipient) all pass through esc_html(). ?>
                                 <?php echo wpsa_schedule_get_last_batch_html(); ?>
                             </div>
                 
@@ -3644,10 +3649,11 @@ function wpsa_render_schedule_panel_ui() {
                     }
 
                     printf(
-                        __(
+                        /* translators: 1: date and time the next run is scheduled for, 2: date and time of the next cron tick. */
+                        wp_kses_post( __(
                             'Next run is scheduled for %1$s. The cron system runs <strong>every 5 minutes</strong>, so it will execute at the next cron tick: %2$s.',
                             'speed-analyzer'
-                        ),
+                        ) ),
                         '<strong>' . esc_html( $scheduled_human ) . '</strong>',
                         '<strong>' . esc_html( $tick_human ) . '</strong>'
                     );
@@ -3726,6 +3732,7 @@ function wpsa_render_schedule_panel_ui() {
                                 <?php
                                 printf(
                                     wp_kses_post(
+                                        /* translators: %s: URL of the Compare Results screen. */
                                         __(
                                             'You can find all of the scheduled test results under the <a href="%s">Compare Results</a> section of the plugin.',
                                             'speed-analyzer'
@@ -3746,9 +3753,11 @@ function wpsa_render_schedule_panel_ui() {
 
              <?php
               // Inline “saved” flag (from ?wpsa_schedule_saved=1).
+                // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only post-redirect notice flag; the screen is registered via add_management_page( ..., 'manage_options', ... ) so the capability is enforced before this renders, and the flag only decides whether a success notice is shown.
                 $wpsa_schedule_saved = isset( $_GET['wpsa_schedule_saved'] ) && '1' === $_GET['wpsa_schedule_saved'];
 
                 // Warning flag (from ?wpsa_schedule_warn_disabled=1).
+                // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only post-redirect notice flag; see note above.
                 $wpsa_schedule_warn_disabled = isset( $_GET['wpsa_schedule_warn_disabled'] ) && '1' === $_GET['wpsa_schedule_warn_disabled'];
                 ?>
                 <p style="margin-top:18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">

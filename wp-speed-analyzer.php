@@ -3,7 +3,7 @@
  * Plugin Name:     Speed Analyzer
  * Plugin URI:      https://wpservice.pro/our-products/speed-analyzer-wp-plugin/
  * Description:     Detect your website's speed, bottlenecks, and key performance indicators to look for.
- * Version:         1.18.5
+ * Version:         1.18.6
  * Author:          Dalibor Druzinec / WPservice
  * Author URI:      https://wpservice.pro
  * License:         GPL v3 or later
@@ -18,7 +18,7 @@ if ( ! defined( 'WPSA_PLUGIN_FILE' ) ) {
     define( 'WPSA_PLUGIN_FILE', __FILE__ );
 }
 
-define( 'SAWP_VERSION', '1.18.5' );
+define( 'SAWP_VERSION', '1.18.6' );
 if ( ! defined( 'WPSA_VERSION' ) ) {
     define( 'WPSA_VERSION', SAWP_VERSION );
 }
@@ -528,8 +528,8 @@ add_action( 'admin_post_wpsa_save_pdf_custom', function() {
 
     // Always allow switching mode (even non-Agency)
     if ( isset( $_POST['wpsa_pdf_apply_mode'] ) || isset( $_POST['wpsa_pdf_save'] ) ) {
-        $mode = in_array( $_POST['wpsa_pdf_mode'] ?? 'factory', [ 'factory','saved' ], true )
-            ? $_POST['wpsa_pdf_mode'] : 'factory';
+        $mode_raw = sanitize_key( wp_unslash( $_POST['wpsa_pdf_mode'] ?? 'factory' ) );
+        $mode     = in_array( $mode_raw, [ 'factory', 'saved' ], true ) ? $mode_raw : 'factory';
         update_option( 'wpsa_pdf_mode', $mode );
     }
 
@@ -567,11 +567,9 @@ add_action( 'admin_post_wpsa_save_pdf_custom', function() {
     }
 
    if ( isset( $_POST['wpsa_pdf_save'] ) ) {
-    // 1) Get the raw input (unsanitized) so we can tell if it was truly blank
-    $raw_header = wp_unslash( $_POST['wpsa_pdf_header_text'] ?? '' );
-
-    // 2) Sanitize + length-limit (used only if not blank)
-    $header = sanitize_text_field( $raw_header );
+    // 1) Sanitize + length-limit the submitted header text. Blankness is decided
+    //    from the sanitized value below, so no raw copy is needed.
+    $header = sanitize_text_field( wp_unslash( $_POST['wpsa_pdf_header_text'] ?? '' ) );
     $header = mb_substr( $header, 0, 80 );
 
     // Pattern that accepts versions like 1, 1.2.3, 1.16c, 2.0-beta, etc.
@@ -723,6 +721,7 @@ function wpsa_render_customize_pdf_panel() {
               <input type="text" id="wpsa_pdf_header_text" name="wpsa_pdf_header_text"
                      value="<?php echo esc_attr( $input_header ); ?>"
                      maxlength="80" class="regular-text"
+                     <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute fragment ('' or ' disabled aria-disabled="true" '); escaping it would break the attribute. ?>
                      <?php echo $disabled_attr; ?>
                      <?php if ( ! $is_agency ) echo ' title="' . esc_attr( $lock_tip ) . '"'; ?>>
               <p class="description">Appears in the PDF header (max 80 chars). Leave blank to fall back to factory default.</p>
@@ -734,6 +733,7 @@ function wpsa_render_customize_pdf_panel() {
               <label>
                 <input type="checkbox" name="wpsa_pdf_remove_cta" value="1"
                        <?php checked( $saved['remove_cta'] ); ?>
+                       <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute fragment ('' or ' disabled aria-disabled="true" '); escaping it would break the attribute. ?>
                        <?php echo $disabled_attr; ?>
                        <?php if ( ! $is_agency ) echo ' title="' . esc_attr( $lock_tip ) . '"'; ?>>
                 Remove the “Need an even deeper audit?” box.
@@ -746,11 +746,13 @@ function wpsa_render_customize_pdf_panel() {
               <label style="display:block;margin-bottom:8px;">
                 <input type="checkbox" name="wpsa_pdf_custom_summary_enabled" value="1"
                        <?php checked( $saved['custom_summary_enabled'] ); ?>
+                       <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute fragment ('' or ' disabled aria-disabled="true" '); escaping it would break the attribute. ?>
                        <?php echo $disabled_attr; ?>
                        <?php if ( ! $is_agency ) echo ' title="' . esc_attr( $lock_tip ) . '"'; ?>>
                 Append a custom summary at the very end.
               </label>
               <textarea name="wpsa_pdf_custom_summary_text" rows="6" style="width:100%;max-width:520px;"
+                        <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute fragment ('' or ' disabled aria-disabled="true" '); escaping it would break the attribute. ?>
                         <?php echo $disabled_attr; ?>
                         <?php if ( ! $is_agency ) echo ' title="' . esc_attr( $lock_tip ) . '"'; ?>><?php
                   echo esc_textarea( $saved['custom_summary_text'] );
@@ -760,7 +762,7 @@ function wpsa_render_customize_pdf_panel() {
         </tbody></table>
 
         <p>
-          <button type="submit" name="wpsa_pdf_save" class="button button-primary" <?php echo $disabled_attr; ?>
+          <button type="submit" name="wpsa_pdf_save" class="button button-primary" <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute fragment; see note above. ?><?php echo $disabled_attr; ?>
             <?php if ( ! $is_agency ) echo ' title="' . esc_attr( $lock_tip ) . '"'; ?>>Save template</button>
           <button type="submit" name="wpsa_pdf_restore_factory" class="button">Restore factory defaults</button>
         </p>
@@ -776,7 +778,9 @@ function wpsa_render_customize_pdf_panel() {
 function wpsa_render_tool_page() {
   // — Decide which tab to show —
     $allowed    = [ 'tests', 'compare', 'schedule', 'license', 'customize' ];
-    $active_tab = ( isset( $_GET['tab'] ) && in_array( $_GET['tab'], $allowed, true ) ) ? $_GET['tab'] : 'tests';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab switch on an admin screen; renders no state change, so a nonce would add nothing.
+    $requested_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+    $active_tab    = in_array( $requested_tab, $allowed, true ) ? $requested_tab : 'tests';
 
     
     global $wpdb;
@@ -1012,8 +1016,9 @@ function wpsa_render_tool_page() {
                      . esc_html__( 'Fair usage limit.', 'speed-analyzer' )
                      . '</strong> '
                      . sprintf(
+                         /* translators: %1$d: number of tests allowed per day. */
                          esc_html__( 'You’ve used all %1$d tests for today.', 'speed-analyzer' ),
-                         $quota['limit']
+                         (int) $quota['limit']
                      )
                      . '</p></div>';
             } else {
@@ -1167,7 +1172,7 @@ function wpsa_render_tool_page() {
 
         <div class="wpsa-feedback-panel wpsa-product-card">
           <h2><?php esc_html_e( 'AI Assets Scanner', 'speed-analyzer' ); ?></h2>
-          <p><?php esc_html_e( 'Try the groundbreaking automatic AI Assets Scanner unloading for smarter asset rules with less manual work.', 'speed-analyzer' ); ?></p>
+          <p><?php esc_html_e( 'Improve your speed with the groundbreaking automatic AI Assets Scanner unloading for smarter asset rules with less manual work.', 'speed-analyzer' ); ?></p>
           <a href="https://wpservice.pro/our-products/ai-assets-scanner/"
              target="_blank"
              rel="noopener noreferrer"

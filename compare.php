@@ -134,7 +134,7 @@ function wpsa_compare_db_class($str) {
         if ($val === null || $val === '') return 'N/A';
         if (is_numeric($val)) {
             $n = is_int($val) ? $val : rtrim(rtrim(number_format((float)$val, 2, '.', ''), '0'), '.');
-            return $unit ? "{$n} {$unit}" : (string)$n;
+            return $unit ? esc_html( "{$n} {$unit}" ) : (string) $n;
         }
         return esc_html((string)$val);
     }
@@ -149,17 +149,18 @@ function wpsa_render_compare_results_panel_ui() {
         return;
     }
     
-    $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : '';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab selector; this screen is gated by the current_user_can( 'manage_options' ) check a few lines above and nothing here changes state.
+    $active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
         if ($active_tab !== 'compare') {
             // Bail early if somehow invoked on a different tab
             return;
         }
 
 
-// Chart.js for trends (safe to enqueue in admin)
+// Chart.js for trends - bundled locally (WP.org forbids offloading scripts to a CDN).
     wp_enqueue_script(
         'wpsa-chartjs',
-        'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+        plugin_dir_url( __FILE__ ) . 'assets/js/chart.umd.min.js',
         array(),
         '4.4.1',
         true
@@ -388,7 +389,8 @@ function wpsa_render_compare_results_panel_ui() {
 
         // Rows count
     $allowed_counts = [5, 10, 20, 50];
-    $count = isset($_GET['cr_count']) ? intval($_GET['cr_count']) : 5;
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only row-count display filter validated against $allowed_counts below; a nonce would break bookmarkable filter URLs and guards no state change.
+    $count = isset( $_GET['cr_count'] ) ? intval( wp_unslash( $_GET['cr_count'] ) ) : 5;
     if ( ! in_array( $count, $allowed_counts, true ) ) {
         $count = 5;
     }
@@ -397,6 +399,7 @@ function wpsa_render_compare_results_panel_ui() {
     //  cr_sonly = '0'   → all runs for this URL
     //  cr_sonly = '1'   → S runs only (this URL)
     //  cr_sonly = 'all' → All S runs only (any URL)
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display filter validated against an allowlist below; no state change.
     $selected_s = isset($_GET['cr_sonly']) ? sanitize_text_field( wp_unslash( $_GET['cr_sonly'] ) ) : '0';
     if ( ! in_array( $selected_s, ['0', '1', 'all'], true ) ) {
         $selected_s = '0';
@@ -549,7 +552,14 @@ function wpsa_render_compare_results_panel_ui() {
     }
     
     // Selected canonical key (accepts either raw URL or canonical in the query)
-    $raw_selected = isset($_GET['cr_url']) ? trim( wp_unslash( $_GET['cr_url'] ) ) : '';
+    // cr_url carries a canonical scheme-less "host/path" key. Do NOT wrap it in
+    // sanitize_text_field(): WP core's _sanitize_text_fields() strips every %[a-f0-9]{2}
+    // sequence, so "example.com/caf%C3%A9" would become "example.com/caf", match no row,
+    // and silently fall back to a different URL's comparison. esc_url_raw() is wrong too -
+    // the key has no scheme and esc_url() would prepend one. The value is only ever compared
+    // against known canonical keys, and every output site escapes it (esc_attr at line ~966).
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- see note above; read-only selector, no state change, and both standard sanitizers corrupt the lookup key.
+    $raw_selected = isset( $_GET['cr_url'] ) ? trim( wp_unslash( $_GET['cr_url'] ) ) : '';
     $selected_key = $raw_selected !== '' ? wpsa_compare_canon_url($raw_selected)
                                          : ( $rows[0]['canon'] ?? '' );
 
@@ -682,10 +692,13 @@ function wpsa_render_compare_results_panel_ui() {
         
             echo '<tr'.($shade?' class="group-alt"':'').'>';
             echo '  <td style="text-align:left">'.esc_html($label).'</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $psi_badge returns 'N/A' or markup whose only dynamic part is passed through esc_html(); re-escaping would double-encode it.
             echo '  <td>'.$psi_badge($old).'</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- see note above.
             echo '  <td>'.$psi_badge($new).'</td>';
-            echo '  <td><span class="cr-chip '.$cls.'">'.wpsa_display_metric($d_abs).'</span></td>';
-            echo '  <td><span class="cr-chip '.$cls.'">'.$pct_txt.'</span></td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_display_metric() returns 'N/A' or an esc_html()'d value on every branch.
+            echo '  <td><span class="cr-chip '.esc_attr($cls).'">'.wpsa_display_metric($d_abs).'</span></td>';
+            echo '  <td><span class="cr-chip '.esc_attr($cls).'">'.esc_html($pct_txt).'</span></td>';
             echo '</tr>';
         };
 
@@ -698,7 +711,7 @@ function wpsa_render_compare_results_panel_ui() {
     echo '<label class="wpsa-form-label">Show last&nbsp;';
     echo '<select name="cr_count">';
     foreach ( $allowed_counts as $opt ) {
-        printf('<option value="%1$d" %2$s>%1$d</option>', $opt, selected( $count, $opt, false ));
+        printf('<option value="%1$d" %2$s>%1$d</option>', (int) $opt, selected( $count, $opt, false ));
     }
     echo '</select>&nbsp;runs</label>';
 
@@ -764,8 +777,8 @@ function wpsa_render_compare_results_panel_ui() {
         $time_part = '';
         $ts = isset( $r['ts'] ) ? (int) $r['ts'] : 0;
         if ( $ts ) {
-            $date_part = date( 'Y-m-d', $ts );
-            $time_part = date( 'H:i',   $ts );
+            $date_part = gmdate( 'Y-m-d', $ts );
+            $time_part = gmdate( 'H:i',   $ts );
         } else {
             if ( preg_match('/^([^T ]+)[T ](.+)$/', $r['datetime'], $mm) ) {
                 $date_part = $mm[1];
@@ -830,6 +843,7 @@ function wpsa_render_compare_results_panel_ui() {
             echo ' <span class="wpsa-badge-s" title="Scheduled test (run automatically)">S</span>';
         }
         echo '</td>';
+        // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $dt_stacked, $chip() and the *_md stacks are markup assembled from fixed literals plus esc_html()'d values (chip class names come from wpsa_delta_class/wpsa_compare_php_class/wpsa_compare_db_class, which return only the fixed literals cr-na/cr-ok/cr-warn/cr-bad). Re-escaping would render the tags as text.
         echo '<td class="col-datetime">'.$dt_stacked.'</td>';
 
         echo '<td class="col-ttfb">'.$chip( $r['ttfb_ms'], 'ttfb' ).' <small>ms</small></td>';
@@ -847,6 +861,7 @@ function wpsa_render_compare_results_panel_ui() {
         echo '<td class="col-poc">'.$chip( $r['m4_poc'], 'bool' ).'</td>';
         echo '<td class="col-php">'.$chip( $r['m45_php'], 'phpv' ).'</td>';
         echo '<td class="col-db">'.$chip( $r['m45_db'],  'dbv' ).'</td>';
+        // phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
         echo '</tr>';
     }
 
@@ -918,13 +933,15 @@ function wpsa_render_compare_results_panel_ui() {
         }
 
         // Apply user selection, fall back to sane defaults if invalid
-        $cmp_a = isset( $_GET['cr_cmp_a'] ) ? intval( $_GET['cr_cmp_a'] ) : $default_a;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only 'compare A' selector, bounds-checked against $by_test below; no state change.
+        $cmp_a = isset( $_GET['cr_cmp_a'] ) ? intval( wp_unslash( $_GET['cr_cmp_a'] ) ) : $default_a;
         if ( ! isset( $by_test[ $cmp_a ] ) ) {
             $cmp_a = $default_a;
         }
 
         // Always allow all tests in B; JS will filter by URL in "All S runs only" mode.
-        $cmp_b = isset( $_GET['cr_cmp_b'] ) ? intval( $_GET['cr_cmp_b'] ) : $default_b;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only 'compare B' selector, bounds-checked against $by_test below; no state change.
+        $cmp_b = isset( $_GET['cr_cmp_b'] ) ? intval( wp_unslash( $_GET['cr_cmp_b'] ) ) : $default_b;
         if ( ! isset( $by_test[ $cmp_b ] ) ) {
             $cmp_b = $default_b;
         }
@@ -961,9 +978,10 @@ function wpsa_render_compare_results_panel_ui() {
 
             printf(
                 '<option value="%1$d"%4$s %2$s>%3$s</option>',
-                $tid,
+                (int) $tid,
                 selected( $cmp_a, $tid, false ),
                 esc_html( $label ),
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $attrs is a pre-escaped attribute fragment built with esc_attr(); escaping it again would break the attribute.
                 $attrs
             );
         }
@@ -979,9 +997,10 @@ function wpsa_render_compare_results_panel_ui() {
 
             printf(
                 '<option value="%1$d"%4$s %2$s>%3$s</option>',
-                $tid,
+                (int) $tid,
                 selected( $cmp_b, $tid, false ),
                 esc_html( $label ),
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $attrs is a pre-escaped attribute fragment built with esc_attr(); escaping it again would break the attribute.
                 $attrs
             );
         }
@@ -1059,10 +1078,13 @@ function wpsa_render_compare_results_panel_ui() {
             
                 echo '<tr'.($shade?' class="group-alt"':'').'>';
                 echo '  <td style="text-align:left">'.esc_html($label).'</td>';
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_display_metric() returns 'N/A' or an esc_html()'d value on every branch.
                 echo '  <td>'. wpsa_display_metric($old, ['suffix'=>$unit, 'zero_invalid'=>$zero_invalid]) .'</td>';
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- see note above.
                 echo '  <td>'. wpsa_display_metric($new, ['suffix'=>$unit, 'zero_invalid'=>$zero_invalid]) .'</td>';
-                echo '  <td><span class="cr-chip '.$cls.'">'.$fmt_delta_abs($d_abs, $unit).'</span></td>';
-                echo '  <td><span class="cr-chip '.$cls.'">'.$pct_txt.'</span></td>';
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $fmt_delta_abs() returns 'N/A' or wpsa_display_metric() output, both already escaped; $unit is a literal supplied by the call sites.
+                echo '  <td><span class="cr-chip '.esc_attr($cls).'">'.$fmt_delta_abs($d_abs, $unit).'</span></td>';
+                echo '  <td><span class="cr-chip '.esc_attr($cls).'">'.esc_html($pct_txt).'</span></td>';
                 echo '</tr>';
             };
             
@@ -1094,7 +1116,9 @@ function wpsa_render_compare_results_panel_ui() {
             // Cache (no deltas)
             echo '<tr'.($shade?' class="group-alt"':'').'>';
             echo '  <td style="text-align:left">Cache status</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($B['cache']).'</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($A['cache']).'</td>';
             echo '  <td colspan="2"><span class="cr-chip cr-na">—</span></td>';
             echo '</tr>';
@@ -1144,7 +1168,9 @@ function wpsa_render_compare_results_panel_ui() {
             // Re-render POC as value-only row (consistent with Cache, no deltas)
             echo '<tr'.($shade?' class="group-alt"':'').'>';
             echo '  <td style="text-align:left">Persistent object cache</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($B['m4_poc']).'</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($A['m4_poc']).'</td>';
             echo '  <td colspan="2"><span class="cr-chip cr-na">—</span></td>';
             echo '</tr>';
@@ -1157,7 +1183,9 @@ function wpsa_render_compare_results_panel_ui() {
             // PHP (value-only, no deltas)
             echo '<tr'.($shade?' class="group-alt"':'').'>';
             echo '  <td style="text-align:left">PHP</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($B['m45_php']).'</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($A['m45_php']).'</td>';
             echo '  <td colspan="2"><span class="cr-chip cr-na">—</span></td>';
             echo '</tr>';
@@ -1165,7 +1193,9 @@ function wpsa_render_compare_results_panel_ui() {
             // DB (value-only, no deltas)
             echo '<tr'.($shade?' class="group-alt"':'').'>';
             echo '  <td style="text-align:left">DB</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($B['m45_db']).'</td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_fmt() returns 'N/A', a numeric string, or an esc_html()'d value.
             echo '  <td>'.wpsa_fmt($A['m45_db']).'</td>';
             echo '  <td colspan="2"><span class="cr-chip cr-na">—</span></td>';
             echo '</tr>';
@@ -1201,7 +1231,7 @@ function wpsa_render_compare_results_panel_ui() {
         foreach ($rows_chron as $r) {
         $ts = isset( $r['ts'] ) ? (int) $r['ts'] : 0;
         $timestamps[] = $ts;
-        $labels_raw[] = $ts ? date('Y-m-d', $ts) : (string)$r['datetime']; // date-only
+        $labels_raw[] = $ts ? gmdate('Y-m-d', $ts) : (string)$r['datetime']; // date-only
 
     
         $ttfb[]  = is_numeric($r['ttfb_ms'])       ? (int)$r['ttfb_ms']       : null;

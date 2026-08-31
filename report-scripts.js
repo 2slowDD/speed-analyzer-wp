@@ -233,54 +233,116 @@ jQuery(function($){
     
     
     const WPSA_PDF_BUILD_MESSAGE = 'Please wait a moment while the PDF report is being built.';
+
+    // Per-stage captions, so the notice reports real progress instead of just sitting there.
+    const WPSA_PDF_STAGES = {
+      request:  'Contacting the server for report data…',
+      layout:   'Preparing the report layout…',
+      render:   'Rendering report pages…',
+      assemble: 'Assembling the PDF…',
+      save:     'Opening the save dialog…'
+    };
+
     let wpsaPdfBuildInProgress = false;
-    let wpsaPdfBuildPulseTimer = null;
-    let wpsaPdfBuildPulseOn = false;
+    let wpsaPdfBuildStageText  = WPSA_PDF_STAGES.request;
+
+    // Hand the browser a real chance to paint before the next long task. Two
+    // animation frames put us past a committed frame, and the trailing timeout
+    // drops to a fresh macrotask so the next step starts on a clean slate.
+    function wpsaPdfYield() {
+      return new Promise(function (resolve) {
+        window.requestAnimationFrame(function () {
+          window.requestAnimationFrame(function () {
+            window.setTimeout(resolve, 0);
+          });
+        });
+      });
+    }
+
+    // PDF page geometry. These MUST stay in step with the jsPDF/margin options
+    // handed to html2pdf().set() further down - the same constants are passed there,
+    // so the canvas budget below can never drift away from the real page size.
+    const WPSA_PDF_MARGIN_PT  = [20, 20, 76, 20];   // top, right, bottom, left
+    const WPSA_PDF_PAGE_W_PT  = 612;                // US Letter, portrait
+    const WPSA_PDF_PT_TO_PX   = 96 / 72;
+
+    // html2canvas does NOT rasterise #report-container. html2pdf clones the source
+    // into its own container sized to the page's inner width, and rasterises that.
+    // #report-container is a bare div appended to <body>, so its own width is the
+    // full wp-admin content width (~1400px) - measuring it overstates the canvas by
+    // roughly 1.8x and steps the scale down a whole notch earlier than necessary.
+    // (612pt - 20pt - 20pt) * 96/72 = 763px.
+    const WPSA_PDF_RASTER_W_PX = Math.round(
+      ( WPSA_PDF_PAGE_W_PT - WPSA_PDF_MARGIN_PT[1] - WPSA_PDF_MARGIN_PT[3] ) * WPSA_PDF_PT_TO_PX
+    );
+
+    // html2canvas allocates width * height * scale^2 pixels (4 bytes each). A long
+    // report at scale 2 can ask for a canvas large enough to stall the renderer for
+    // tens of seconds, which is what triggers the browser's "Page Unresponsive"
+    // prompt. Step the scale down so the canvas stays inside a budget the browser
+    // can rasterise comfortably. At the real 763px width a report has to reach about
+    // nine pages before it steps below scale 2, so typical reports are untouched.
+    //
+    // Only the height is measured from the live element. Its width is deliberately
+    // ignored (see above); the pages inside are max-width:660px and centred, so the
+    // reflow to 763px leaves the height effectively unchanged.
+    function wpsaPdfPickScale($el) {
+      const MAX_CANVAS_PX = 24e6; // ~24M px, about 96 MB of RGBA
+      const el = ($el && $el.get) ? $el.get(0) : null;
+      if (!el) return 2;
+      const h = el.scrollHeight || el.offsetHeight || 1056;
+      const area = WPSA_PDF_RASTER_W_PX * h;
+      if (!(area > 0)) return 2;
+      const steps = [2, 1.75, 1.5, 1.25, 1];
+      for (let i = 0; i < steps.length; i++) {
+        if (area * steps[i] * steps[i] <= MAX_CANVAS_PX) return steps[i];
+      }
+      return 1;
+    }
+
+    function setPdfBuildStage(text) {
+      wpsaPdfBuildStageText = text || '';
+      $('.wpsa-pdf-build-stage').text(wpsaPdfBuildStageText);
+    }
 
     function ensurePdfBuildNoticeStyles() {
       if ($('#wpsa-pdf-build-notice-style').length) return;
 
+      // Everything animated below moves transform/opacity only. Those are handled
+      // on the compositor thread, so the indicator keeps turning even while the
+      // main thread is busy rasterising the report - exactly when the user most
+      // needs to see the page is alive. Animating box-shadow or background
+      // instead would freeze in lockstep with the page and look like a hang.
       $('<style id="wpsa-pdf-build-notice-style"></style>')
         .text(
-          '@keyframes wpsaPdfBuildPulse {' +
-            '0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.12); background:#fff; }' +
-            '50% { box-shadow: 0 5px 18px rgba(255,107,53,0.32); background:#fff8f4; }' +
+          '@keyframes wpsaPdfBuildSpin {' +
+            'from { transform: rotate(0deg); }' +
+            'to { transform: rotate(360deg); }' +
           '}' +
           '@keyframes wpsaPdfBuildDotPulse {' +
-            '0%, 100% { transform: scale(0.72); opacity: 0.45; box-shadow: 0 0 0 0 rgba(255,107,53,0.42); }' +
-            '50% { transform: scale(1.18); opacity: 1; box-shadow: 0 0 0 7px rgba(255,107,53,0); }' +
+            '0%, 100% { transform: scale(0.72); opacity: 0.45; }' +
+            '50% { transform: scale(1.18); opacity: 1; }' +
+          '}' +
+          '.wpsa-pdf-build-spinner {' +
+            'display:inline-block; flex:0 0 auto; width:14px; height:14px;' +
+            'border:2px solid rgba(255,107,53,0.25); border-top-color:#ff6b35;' +
+            'border-radius:50%; will-change:transform;' +
+            'animation: wpsaPdfBuildSpin 0.9s linear infinite;' +
+          '}' +
+          '.wpsa-pdf-build-pulse-dot { will-change: transform, opacity; }' +
+          '.wpsa-pdf-build-stage {' +
+            'display:block; margin-top:5px; font-size:11px; color:#646970;' +
           '}' +
           '@media (prefers-reduced-motion: reduce) {' +
-            '.wpsa-pdf-build-notice { animation: none !important; }' +
+            '.wpsa-pdf-build-spinner, .wpsa-pdf-build-pulse-dot { animation: none !important; }' +
           '}'
         )
         .appendTo('head');
     }
 
-    function stopPdfBuildPulseFallback() {
-      if (wpsaPdfBuildPulseTimer) {
-        window.clearInterval(wpsaPdfBuildPulseTimer);
-        wpsaPdfBuildPulseTimer = null;
-      }
-      wpsaPdfBuildPulseOn = false;
-    }
-
-    function startPdfBuildPulseFallback() {
-      if (wpsaPdfBuildPulseTimer) return;
-
-      wpsaPdfBuildPulseTimer = window.setInterval(function(){
-        wpsaPdfBuildPulseOn = !wpsaPdfBuildPulseOn;
-        $('.wpsa-pdf-build-pulse-dot').css({
-          opacity: wpsaPdfBuildPulseOn ? '1' : '0.38',
-          transform: wpsaPdfBuildPulseOn ? 'scale(1.28)' : 'scale(0.72)',
-          boxShadow: wpsaPdfBuildPulseOn ? '0 0 0 7px rgba(255,107,53,0)' : '0 0 0 0 rgba(255,107,53,0.42)'
-        });
-      }, 650);
-    }
-
     function clearPdfBuildNotice() {
       wpsaPdfBuildInProgress = false;
-      stopPdfBuildPulseFallback();
+      wpsaPdfBuildStageText  = WPSA_PDF_STAGES.request;
       $('.wpsa-pdf-build-notice').remove();
     }
 
@@ -296,29 +358,38 @@ jQuery(function($){
         maxWidth: '420px',
         textAlign: 'left',
         borderLeftColor: '#ff6b35',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        animation: 'wpsaPdfBuildPulse 2.4s ease-in-out infinite'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
       });
       const $p = $('<p></p>').css({
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: '9px',
         margin: 0
       });
+
+      // The spinner carries the "still working" signal; the dot keeps the previous
+      // visual language. Both are compositor-driven (see the style block above).
+      $p.append($('<span class="wpsa-pdf-build-spinner" aria-hidden="true"></span>').css({ marginTop: '2px' }));
+
       const $dot = $('<span class="wpsa-pdf-build-pulse-dot" aria-hidden="true"></span>').css({
         display: 'inline-block',
         flex: '0 0 auto',
         width: '10px',
         height: '10px',
+        marginTop: '4px',
         borderRadius: '999px',
         background: '#ff6b35',
         opacity: '0.45',
         transform: 'scale(0.72)',
-        transition: 'opacity 0.55s ease-in-out, transform 0.55s ease-in-out, box-shadow 0.55s ease-in-out',
         animation: 'wpsaPdfBuildDotPulse 1.45s ease-in-out infinite'
       });
       $p.append($dot);
-      $p.append($('<span></span>').text(WPSA_PDF_BUILD_MESSAGE));
+
+      const $text = $('<span></span>');
+      $text.append($('<span></span>').text(WPSA_PDF_BUILD_MESSAGE));
+      $text.append($('<span class="wpsa-pdf-build-stage"></span>').text(wpsaPdfBuildStageText));
+      $p.append($text);
+
       $notice.append($p);
 
       const $button = $wrap.find('.wpsa-button-pdf').first();
@@ -340,7 +411,6 @@ jQuery(function($){
       $('.wpsa-pdf-button-wrap').each(function(){
         renderPdfBuildNotice($(this));
       });
-      startPdfBuildPulseFallback();
     }
 
     function generatePdf(e){
@@ -350,6 +420,7 @@ jQuery(function($){
 
       const $btn = $(this).prop('disabled', true);
       const testUrl = $('input[name="test_url"]').val();
+      setPdfBuildStage(WPSA_PDF_STAGES.request);
       showPdfBuildNotice($btn);
 
       $.post(wpsaPdf.ajaxUrl, {
@@ -382,6 +453,7 @@ jQuery(function($){
         // refresh both buttons
         updatePdfButton(r.data.remaining, r.data.limit);
         showPdfBuildNotice();
+        setPdfBuildStage(WPSA_PDF_STAGES.layout);
 
         window.setTimeout(function(){
         // Prepare off-DOM HTML & strip tooltips
@@ -2686,17 +2758,33 @@ jQuery(function($){
         
 
         // — render PDF —
+        // The build is chained step by step instead of calling .toPdf() in one go.
+        // html2pdf memoises each stage (toPdf reuses prop.canvas, toCanvas reuses
+        // prop.container), so this is equivalent work in the same order — but it
+        // gives us a repaint between the heavy stages and somewhere to report
+        // progress. enableLinks still works: the link rectangles are computed
+        // inside toContainer(), which also sets prop.pageSize if it is not set yet.
+        const pdfScale = wpsaPdfPickScale($c);
+
         html2pdf()
           .set({
-            margin:      [20,20,76,20], // bottom page margin 80 → 76
+            margin:      WPSA_PDF_MARGIN_PT.slice(), // shared with the canvas-budget math above
             filename:    pdfName,
             image:       { type:'jpeg', quality:0.98 },
-            html2canvas: { scale:2, useCORS:true, scrollY:0 },
+            html2canvas: { scale: pdfScale, useCORS:true, scrollY:0 },
             jsPDF:       { unit:'pt', format:'letter', orientation:'portrait' },
             pagebreak:   { mode:['css','legacy'] },
             enableLinks: true
           })
           .from($c.get(0))
+          .then(function () { setPdfBuildStage(WPSA_PDF_STAGES.layout); })
+          .then(wpsaPdfYield)
+          .toContainer()
+          .then(function () { setPdfBuildStage(WPSA_PDF_STAGES.render); })
+          .then(wpsaPdfYield)
+          .toCanvas()
+          .then(function () { setPdfBuildStage(WPSA_PDF_STAGES.assemble); })
+          .then(wpsaPdfYield)
           .toPdf()
           .get('pdf')
           .then(function (pdf) {
@@ -2712,12 +2800,33 @@ jQuery(function($){
                  .text(`Page ${i} of ${total}`, pw - 20, ph - 30, { align:'right' });
             }
           })
+          .then(function () { setPdfBuildStage(WPSA_PDF_STAGES.save); })
+          .then(wpsaPdfYield)
           .save()
           .then(() => {
             $c.hide();
             // Clean up the head-injected PDF-only CSS so it never leaks to the UI
             $('#wpsa-pdf-only').remove();
             clearPdfBuildNotice();
+          })
+          .catch(function (err) {
+            // A failed client-side build must not leave the notice spinning forever.
+            console.error('[WPSA] PDF build failed', err);
+            $c.hide();
+            $('#wpsa-pdf-only').remove();
+            clearPdfBuildNotice();
+
+            const $wrap = $('.wpsa-pdf-button-wrap').first();
+            if ($wrap.length) {
+              $wrap.find('.notice-error2').remove();
+              const $notice = $('<div class="notice notice-error2"></div>');
+              const $p = $('<p></p>');
+              $p.append($('<strong></strong>').text('Error:'));
+              $p.append(document.createTextNode(' The PDF could not be built in the browser. Please try again.'));
+              $notice.append($p);
+              $wrap.append($notice);
+            }
+            $('.wpsa-button-pdf').prop('disabled', false);
           });
         }, 50);
 
@@ -2774,6 +2883,12 @@ jQuery(function($){
       .on('click.wpsaPDF', '.wpsa-button-pdf', function (e) {
         e.preventDefault();
         if ($(this).prop('disabled')) return;   // no double-fires
+        // The AJAX .always() re-enables the button as soon as the server call
+        // settles, but the client-side build runs well past that and now yields to
+        // the browser between stages - so a second click really can be serviced
+        // mid-build. A second run calls $c.empty() on the shared #report-container
+        // and would corrupt the PDF still being assembled.
+        if (wpsaPdfBuildInProgress) return;
         generatePdf.call(this, e);
       });
       

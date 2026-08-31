@@ -10,6 +10,62 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+/**
+ * Recursively sanitize every scalar inside a decoded payload.
+ *
+ * Used for JSON bodies and structured POST maps, where sanitizing the raw
+ * request string before decoding would corrupt it. Decode first, then run the
+ * result through this so every leaf value is sanitized.
+ *
+ * CAVEAT: sanitize_text_field() strips percent-encoded octets (%XX) and collapses
+ * newlines. That is harmless for the current diagnostics payloads (title, value,
+ * severity), but if a URL or multi-line text is ever added to one of those payloads
+ * it will be mangled here - reach for a per-field sanitizer at that point.
+ *
+ * @param mixed $value Decoded value (array, scalar or null).
+ * @return mixed Sanitized value of the same shape.
+ */
+if ( ! function_exists( 'wpsa_sanitize_text_deep' ) ) {
+    function wpsa_sanitize_text_deep( $value ) {
+        if ( is_array( $value ) ) {
+            $clean = array();
+            foreach ( $value as $k => $v ) {
+                $clean[ sanitize_text_field( (string) $k ) ] = wpsa_sanitize_text_deep( $v );
+            }
+            return $clean;
+        }
+        if ( is_string( $value ) ) {
+            return sanitize_text_field( $value );
+        }
+        // Numbers, booleans and null are already safe scalars.
+        return $value;
+    }
+}
+
+/**
+ * Debug-only logger for Speed Analyzer.
+ *
+ * Every diagnostic message in the plugin funnels through this one function so
+ * that production sites stay quiet. Output happens only when both WP_DEBUG and
+ * WP_DEBUG_LOG are enabled, which is the WordPress-sanctioned way for a site
+ * owner to opt in to debug output.
+ *
+ * @param string $message Message to record verbatim.
+ * @return void
+ */
+if ( ! function_exists( 'wpsa_debug_log' ) ) {
+    function wpsa_debug_log( $message ) {
+        if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
+            return;
+        }
+        if ( ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG ) {
+            return;
+        }
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- single intentional debug sink for the whole plugin; unreachable unless the site owner has switched on both WP_DEBUG and WP_DEBUG_LOG.
+        error_log( (string) $message );
+    }
+}
+
 // helpers.php – disable WP emoji replacement in admin so you don't get broken <img> placeholders
 add_action( 'admin_init', function() {
     remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
@@ -55,7 +111,7 @@ function wpsa_get_worker_endpoint() {
     );
     $count = count( $workers );
     if ( 0 === $count ) {
-        trigger_error( 'No Speed Analyzer workers configured', E_USER_WARNING );
+        wpsa_debug_log( 'No Speed Analyzer workers configured' );
         return '';
     }
     $opt_key = 'wpsa_next_worker_index';
@@ -194,6 +250,7 @@ function wpsa_get_origin_response_headers( $url ) {
         ];
         if ( ! file_exists( $file ) ) return $empty;
     
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- streaming line-by-line read with an early break over an append-only diagnostics log at a fixed, plugin-owned path; WP_Filesystem has no incremental reader and get_contents_array() would load an unbounded file into memory.
         $fh = fopen( $file, 'r' );
         if ( ! $fh ) return $empty;
     
@@ -206,6 +263,7 @@ function wpsa_get_origin_response_headers( $url ) {
                 $row = $obj; break;
             }
         }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closes the streaming handle opened above.
         fclose( $fh );
         if ( ! $row ) return $empty;
     
@@ -1473,16 +1531,12 @@ function wpsa_get_db_size_human() {
         return 'N/A';
     }
 
-    // Single aggregate query against information_schema for current DB only.
-    // No user input is interpolated – safe by WP.org standards.
-    $sql = "
-        SELECT ROUND( SUM( data_length + index_length ) / 1024 / 1024, 1 )
-        FROM information_schema.TABLES
-        WHERE table_schema = DATABASE()
-    ";
-
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-    $size_mb = $wpdb->get_var( $sql );
+    // Single aggregate query against information_schema for the current DB only.
+    // The SQL is a fixed literal with no interpolation and no user input, so there is
+    // nothing to prepare. It is inlined into the call because the static sniff cannot
+    // follow a query held in a variable and reports NotPrepared on the indirection.
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fixed literal aggregate over information_schema, no user input; single scalar read on an admin screen, not worth a cache entry.
+    $size_mb = $wpdb->get_var( "SELECT ROUND( SUM( data_length + index_length ) / 1024 / 1024, 1 ) FROM information_schema.TABLES WHERE table_schema = DATABASE()" );
 
     if ( ! is_numeric( $size_mb ) ) {
         return 'N/A';

@@ -3,6 +3,32 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.18.6]
+### Added
+- Chart.js 4.4.1 is now bundled at `assets/js/chart.umd.min.js`; no admin script is loaded from a third-party CDN any more.
+- `wpsa_debug_log()` in `helpers.php` — a single WP_DEBUG + WP_DEBUG_LOG gated sink that all plugin diagnostics route through.
+- `wpsa_sanitize_text_deep()` in `helpers.php` — recursive sanitizer applied to decoded JSON and structured POST payloads.
+- `tests/debug-log-gate-harness.php` — proves the debug sink stays silent unless the site owner opts in.
+
+### Changed
+- PDF report generation is now staged (container -> canvas -> PDF) with a repaint yield and progress text between steps, so the browser stays responsive while the report is built.
+- The PDF activity indicator animates transform/opacity only, so it keeps moving on the compositor even while the main thread is busy rendering.
+- html2canvas scale now adapts to report length, so long reports no longer allocate an oversized canvas. The budget is computed against the width html2pdf actually rasterises (the page inner width, 763px) rather than the admin container width, so reports up to roughly eight pages still render at full scale and are byte-identical to 1.18.5; only longer reports step down.
+- All `error_log()` calls in `schedule.php` and `modules.php` now route through `wpsa_debug_log()`.
+- The version-lockstep test derives the version from the plugin header instead of pinning a literal, so it no longer needs editing on every release.
+
+### Fixed
+- Every Plugin Check error resolved: output escaping, input sanitization and unslashing, `$wpdb->prepare()` visibility, `translators:` comments, direct-file-access protection in `lpanel.php`, `unlink()` -> `wp_delete_file()`, and `date()` -> `gmdate()`.
+- Restored consistent line endings in files that had mixed CRLF/LF.
+
+### Security
+- Plugin debug output is no longer written to production error logs by default.
+
+### Compatibility
+- Tested up to WordPress 7.1.
+
+---
+
 ## [1.18.5]
 ### Changed
 - Replaced Perfmatters mentions in the generated PDF report with AI Assets Scanner and linked the AI Assets Scanner product page.

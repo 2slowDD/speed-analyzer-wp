@@ -566,9 +566,11 @@ function wpsa_editor_add_speed_column( $cols ) {
         }
     }
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only screen context; the caller is gated by current_user_can( 'manage_options' ) and this only picks which post type the editor screen describes.
     if ( '' === $screen_post_type && isset( $_GET['post_type'] ) ) {
         $screen_post_type = sanitize_key( wp_unslash( $_GET['post_type'] ) );
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     if ( '' === $screen_post_type ) {
         $screen_post_type = 'post';
@@ -692,6 +694,7 @@ function wpsa_editor_render_speed_column( $col, $post_id ) {
     echo '<div class="wpsa-admin-cell">';
 
       echo '<a class="wpsa-admin-score" href="' . esc_url( $see_report_url ) . '" aria-label="Open Speed Analyzer report">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wpsa_editor_build_gauge_svg() returns a fixed <svg>/<circle> skeleton whose every dynamic value passes through esc_attr(); wp_kses_post() would strip the SVG tags entirely.
         echo $svg;
         echo '<span class="wpsa-admin-score-text" style="color:' . esc_attr( $ring ) . ';">' . esc_html( is_int( $score ) ? (string) $score : 'N/A' ) . '</span>';
       echo '</a>';

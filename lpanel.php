@@ -3,6 +3,10 @@
  * Renders the inner contents of the License panel. v1.21
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 function wpsa_render_license_panel_ui() {
      
     // ── Stored values ──
@@ -245,7 +249,7 @@ function wpsa_render_license_panel_ui() {
                     ]
                   );
                 ?>
-                <?php echo $icon;?>
+                <?php echo wp_kses( $icon, array( 'span' => array( 'class' => array(), 'style' => array() ) ) ); ?>
               </td>
             </tr>
 

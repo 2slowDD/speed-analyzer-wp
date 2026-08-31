@@ -815,7 +815,10 @@ add_action( 'wp_ajax_wpsa_log_module5', function () {
 remove_all_actions( 'wp_ajax_wpsa_log_module5_diag' ); // in case a previous declaration exists
 add_action( 'wp_ajax_wpsa_log_module5_diag', function () {
     // ---- Nonce (manual) ----
-    $nonce = isset( $_REQUEST['_ajax_nonce'] ) ? $_REQUEST['_ajax_nonce'] : ( $_REQUEST['nonce'] ?? '' );
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- this IS the nonce read; it is verified immediately below.
+    $nonce = isset( $_REQUEST['_ajax_nonce'] )
+        ? sanitize_text_field( wp_unslash( $_REQUEST['_ajax_nonce'] ) )
+        : sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ?? '' ) );
     $nonce = is_string( $nonce ) ? $nonce : '';
     $nonce_ok =
         wp_verify_nonce( $nonce, 'wpsa_perf_nonce' ) ||
@@ -838,23 +841,31 @@ add_action( 'wp_ajax_wpsa_log_module5_diag', function () {
     // Arrays arrive as JSON-encoded strings; decode defensively.
     $decode_json = static function( $s ) {
         $arr = json_decode( (string) $s, true );
-        if ( is_array( $arr ) ) return $arr;
+        if ( is_array( $arr ) ) return wpsa_sanitize_text_deep( $arr );
         $maybe = base64_decode( (string) $s, true );
         if ( $maybe !== false ) {
             $arr = json_decode( $maybe, true );
-            if ( is_array( $arr ) ) return $arr;
+            if ( is_array( $arr ) ) return wpsa_sanitize_text_deep( $arr );
         }
         return array();
     };
     
     // New (split) payloads
-    $mob_op_raw  = wp_unslash( $_POST['mobile_op']  ?? '[]' );
-    $mob_in_raw  = wp_unslash( $_POST['mobile_in']  ?? '[]' );
+    // JSON payloads: decode first, then sanitize each decoded value ($decode_json is
+    // wrapped below). Sanitizing these raw strings first would corrupt the JSON.
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
+    $mob_op_raw  = wp_unslash( $_POST['mobile_op'] ?? '[]' );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
+    $mob_in_raw  = wp_unslash( $_POST['mobile_in'] ?? '[]' );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
     $desk_op_raw = wp_unslash( $_POST['desktop_op'] ?? '[]' );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
     $desk_in_raw = wp_unslash( $_POST['desktop_in'] ?? '[]' );
     
     // Back-compat (legacy mixed arrays)
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
     $mobile_legacy_raw  = wp_unslash( $_POST['mobile']  ?? '[]' );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
     $desktop_legacy_raw = wp_unslash( $_POST['desktop'] ?? '[]' );
     
     $mobile = [

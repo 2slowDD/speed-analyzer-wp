@@ -745,7 +745,7 @@ defined( 'ABSPATH' ) || exit;
               echo '<p><strong>' . esc_html($device . ' ' . $label . ': ' . $disp) . '</strong>' . ( $sev === 'good' ? ' ✅' : '' ) . '</p>';
         
               if ( is_null($value) ) {
-                echo '<p>' . esc_html($label) . ' not available for ' . strtolower(esc_html($device)) . '.</p>';
+                echo '<p>' . esc_html($label) . ' not available for ' . esc_html( strtolower( $device ) ) . '.</p>';
               } else {
                 echo '<p>' . esc_html( $wpsa_conclusion_map[$mapRoot][$metricKey][$sev]['explanation'] ) . '</p>';
                 echo '<p><strong>💡 Advice:</strong> ' . esc_html( $wpsa_conclusion_map[$mapRoot][$metricKey][$sev]['advice'] ) . '</p>';

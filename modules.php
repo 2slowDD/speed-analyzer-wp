@@ -346,7 +346,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     function wpsa_run_module2_scheduled( $url ) {
         $url = esc_url_raw( $url );
         if ( ! $url ) {
-            error_log( '[WPSA] Module 2 scheduled: invalid URL.' );
+            wpsa_debug_log( '[WPSA] Module 2 scheduled: invalid URL.' );
             return false;
         }
     
@@ -385,7 +385,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                     ucfirst( $strat ),
                     $err
                 );
-                error_log( '[WPSA] Module 2 scheduled ' . $strat . ' failed: ' . $err );
+                wpsa_debug_log( '[WPSA] Module 2 scheduled ' . $strat . ' failed: ' . $err );
                 continue;
             }
     
@@ -614,11 +614,15 @@ if ( ! defined( 'ABSPATH' ) ) {
     
         $test_no    = intval( $_POST['test_no']    ?? 0 );
         $tested_url = esc_url_raw( wp_unslash( $_POST['tested_url'] ?? '' ) );
-        $mobile_raw = (string) ( $_POST['mobile']  ?? '[]' );
-        $desktop_raw= (string) ( $_POST['desktop'] ?? '[]' );
+        // JSON payloads: unslash, decode, then sanitize every decoded value. Running a
+        // sanitizer over the raw string before json_decode() would corrupt the JSON.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
+        $mobile_raw  = (string) wp_unslash( $_POST['mobile']  ?? '[]' );
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- see note above.
+        $desktop_raw = (string) wp_unslash( $_POST['desktop'] ?? '[]' );
     
-        $mobile  = json_decode( $mobile_raw, true );
-        $desktop = json_decode( $desktop_raw, true );
+        $mobile  = wpsa_sanitize_text_deep( json_decode( $mobile_raw, true ) );
+        $desktop = wpsa_sanitize_text_deep( json_decode( $desktop_raw, true ) );
     
         // Normal (manual) test – no “S” suffix here
         wpsa_log_module5_diag_row( $test_no, $tested_url, $mobile, $desktop, false );
@@ -659,6 +663,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             $needs_init = true;
         } else {
             $dir = dirname( $log_path );
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- read-only writability probe on the plugin's own uploads directory to pick a log path; WP_Filesystem needs credential bootstrapping and offers no equivalent boolean check.
             if ( ! is_dir( $dir ) || ! is_writable( $dir ) ) {
                 $needs_init = true;
             }
@@ -731,13 +736,10 @@ if ( ! defined( 'ABSPATH' ) ) {
         if ( false === $kb || (float) $kb === 0.0 ) {
              // Summarize size of all autoloaded options (in KB) — WP core semantics: autoload='yes' only.
             $method   = 'sql_yes';
-            $sql_yes  = $wpdb->prepare(
-                "SELECT COALESCE(SUM(OCTET_LENGTH(option_value)),0)
-                 FROM {$wpdb->options}
-                 WHERE autoload = %s",
-                'yes'
-            );
-            $bytes_raw = $wpdb->get_var( $sql_yes ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // prepare() is inlined into get_var() because the static sniff cannot follow a
+            // prepared query held in a variable and reports NotPrepared on the indirection.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- autoload size probe over the core options table; the result is cached by the wp_cache_get/wp_cache_set pair wrapping this block.
+            $bytes_raw = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(OCTET_LENGTH(option_value)),0) FROM {$wpdb->options} WHERE autoload = %s", 'yes' ) );
             $bytes     = is_numeric( $bytes_raw ) ? (int) $bytes_raw : 0;
     
             // 2) Fallback A: wp_load_alloptions()
@@ -760,6 +762,9 @@ if ( ! defined( 'ABSPATH' ) ) {
                 if ( 0 === $bytes ) {
                     // Pull autoload='yes' only and sum in PHP.
                 $method = 'raw_db_yes';
+                // Raw autoload='yes' read on the core options table so the sizes can be summed
+                // in PHP; core exposes no API for option byte lengths.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- see note above.
                 $values = $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT option_value
@@ -767,7 +772,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                          WHERE autoload = %s",
                         'yes'
                     )
-                ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                );
                     
                 if ( is_array( $values ) && ! empty( $values ) ) {
                     $raw_count = count( $values );
@@ -785,7 +790,7 @@ if ( ! defined( 'ABSPATH' ) ) {
        if ( 0.0 === (float) $kb ) {
             // Log TRACE only in failing cases (kb==0) to keep logs clean.
             @file_put_contents( $log_path, "Module 3 TRACE: start\n", FILE_APPEND ); // phpcs:ignore WordPress.VIP.FileSystemWritesDisallow.file_ops_write
-            error_log( '[WPSA] Module 3 TRACE: start' );
+            wpsa_debug_log( '[WPSA] Module 3 TRACE: start' );
             $dist = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 "SELECT COALESCE(autoload,'NULL') AS autoload_flag, COUNT(*) AS cnt
                  FROM {$wpdb->options}
@@ -799,29 +804,33 @@ if ( ! defined( 'ABSPATH' ) ) {
                     $db_err = sanitize_text_field( $wpdb->last_error );
                     // Mirror to both sinks so we can see it even if file writes are blocked
                     @file_put_contents( $log_path, "Module 3 SQL ERROR: {$db_err}\n", FILE_APPEND ); // phpcs:ignore
-                    error_log( '[WPSA] Module 3 SQL ERROR: ' . $db_err );
+                    wpsa_debug_log( '[WPSA] Module 3 SQL ERROR: ' . $db_err );
                 }
             // phpcs:ignore WordPress.VIP.FileSystemWritesDisallow.file_ops_write
             @file_put_contents( $log_path, "Module 3 DEBUG: kb=0 via {$method}; raw_rows={$raw_count}; dist={$dist_json}\n", FILE_APPEND );
             // Mirror DEBUG to PHP error log as a fallback on locked FS
-            error_log( '[WPSA] Module 3 DEBUG: kb=0 via ' . $method . '; raw_rows=' . (int) $raw_count . '; dist=' . $dist_json );
+            wpsa_debug_log( '[WPSA] Module 3 DEBUG: kb=0 via ' . $method . '; raw_rows=' . (int) $raw_count . '; dist=' . $dist_json );
             
             // --- add this inside the kb==0 block, after $dist_json is built ---
 
         // Count "truthy" autoload rows that WordPress would NOT autoload.
+        // Diagnostic count of non-standard autoload flag values on the core options table;
+        // no core API exposes this, and it runs only in the kb==0 fallback branch.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- see note above.
         $truthy_cnt = (int) $wpdb->get_var(
             "SELECT COUNT(*)
              FROM {$wpdb->options}
              WHERE LOWER(COALESCE(autoload,'no')) IN ('on','auto','1','true','y')"
-        ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        );
         
         if ( $truthy_cnt > 0 ) {
             // (Optional) also compute their would-be size, for the log only.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- diagnostic size of those same non-standard autoload rows; logged only.
             $truthy_kb = (float) $wpdb->get_var(
                 "SELECT ROUND(COALESCE(SUM(OCTET_LENGTH(option_value)),0)/1024,1)
                  FROM {$wpdb->options}
                  WHERE LOWER(COALESCE(autoload,'no')) IN ('on','auto','1','true','y')"
-            ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            );
         
             // Log a clear note
             @file_put_contents(
@@ -855,6 +864,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     $bg2 = ( $oc === 'Yes' ) ? '#c6f7c3' : '#ffdddd';
         
         // Also collect the Top 10 autoloaded options by size (bytes → KB) for the UI
+       // Top-10 autoloaded options by byte size for the admin UI; core exposes no API for
+       // option byte lengths.
+       // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- see note above.
        $top_rows = $wpdb->get_results(
         $wpdb->prepare(
             "SELECT option_name, OCTET_LENGTH(option_value) AS bytes_len
@@ -865,7 +877,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             'yes'
         ),
         ARRAY_A
-    ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+    );
         $top10_html = '';
         if ( is_array( $top_rows ) && ! empty( $top_rows ) ) {
             $rows_html = '';
@@ -899,8 +911,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     file_put_contents( $log_path, sprintf( "Module 4: Persistent object cache: %s\n", $oc ), FILE_APPEND );  
     
     // Mirror final results to PHP error log as fallback (temporary while diagnosing Cloudways)
-    error_log( '[WPSA] Module 3: Autoloaded options size: ' . sprintf( '%.1f KB', (float) $kb ) );
-    error_log( '[WPSA] Module 4: Persistent object cache: ' . $oc );
+    wpsa_debug_log( '[WPSA] Module 3: Autoloaded options size: ' . sprintf( '%.1f KB', (float) $kb ) );
+    wpsa_debug_log( '[WPSA] Module 4: Persistent object cache: ' . $oc );
     
     // --- Row with Modules 3 & 4 (single row) ---
 echo '<div class="wpsa-stat-cards photo">';
@@ -913,6 +925,7 @@ echo '<div class="wpsa-stat-cards photo">';
       echo '<div class="value">' . esc_html( $kb ) . ' KB' . ( $kb <= 800 ? ' <span class="icon">✅</span>' : '' ) . '</div>';
     echo '</div>';
     if ( ! isset( $ui_hint ) ) { $ui_hint = ''; }
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $ui_hint and $top10_html are markup assembled from fixed literals plus esc_html()/esc_html__() values; re-escaping would render the tags as text.
     echo '<p class="wpsa-footnote">*Try to keep this value under 800 KB</p>' . $ui_hint . $top10_html;
   echo '</div>';
 
@@ -974,6 +987,9 @@ echo '</div>'; // /.wpsa-stat-cards
     $db_name    = $wpdb->get_var( 'SELECT DATABASE()' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
     if ( ! empty( $db_name ) ) {
+        // Database size for the current schema, read from information_schema; core exposes
+        // no API for this.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- see note above.
         $size_raw = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1)
@@ -981,7 +997,7 @@ echo '</div>'; // /.wpsa-stat-cards
                  WHERE table_schema = %s",
                 $db_name
             )
-        ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        );
 
         if ( is_numeric( $size_raw ) ) {
             $db_size_mb = (float) $size_raw;
@@ -1031,7 +1047,7 @@ echo '</div>'; // /.wpsa-stat-cards
      echo '<div class="wpsa-col-plugins">';
        echo '<div class="wpsa-stat-card wpsa-meta-card wpsa-card-plugins ' . esc_attr( $sev_plugins ) . '">';
          echo '<div class="header">Active plugins</div>';
-         echo '<div class="value">' . esc_html( (string) $active_plugins ) . $icon_plugins . '</div>';
+         echo '<div class="value">' . esc_html( (string) $active_plugins ) . wp_kses( $icon_plugins, array( 'span' => array( 'class' => array() ) ) ) . '</div>';
        echo '</div>';
        if ( ! empty( $plugins_list ) ) {
          echo '<details class="wpsa-autoload-top10" style="margin-top:8px;">'
@@ -1053,7 +1069,7 @@ echo '</div>'; // /.wpsa-stat-cards
     
     echo '<div class="wpsa-stat-card wpsa-meta-card wpsa-card-php ' . esc_attr( $sev_php ) . '">';
       echo '<div class="header">PHP version</div>';
-      echo '<div class="value">' . esc_html( $php_ver ) . $icon_php . '</div>';
+      echo '<div class="value">' . esc_html( $php_ver ) . wp_kses( $icon_php, array( 'span' => array( 'class' => array() ) ) ) . '</div>';
     echo '</div>';
 
     // DB server card with version + DB size (MB or GB)
@@ -1078,7 +1094,7 @@ echo '</div>'; // /.wpsa-stat-cards
               . esc_html( $vendor ) . '<br>'
               . '<span class="subvalue">'
                   . esc_html( $db_ver )
-                  . $icon_db              // checkmark right after version
+                  . wp_kses( $icon_db, array( 'span' => array( 'class' => array() ) ) )              // checkmark right after version
                   . esc_html( $db_extra ) // DB size after check
               . '</span>'
           . '</div>';
