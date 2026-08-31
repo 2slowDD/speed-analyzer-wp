@@ -192,8 +192,12 @@ function wpsa_schedule_attach_module5_to_test( $results_log, $tested_url, $lines
                 continue;
             }
 
-           if ( preg_match( '/^Module\s+5\s+(Mobile|Desktop):/i', $ln_trim ) ) {
-                // Drop old Module 5 lines.
+           if ( preg_match( '/^Module\s+5\s+(Mobile|Desktop)\b/i', $ln_trim ) ) {
+                // Drop old Module 5 lines, including the "Module 5 <Device> TBT:" line
+                // that decision D7 puts on its own. \b rather than a literal ':' - a
+                // ':'-anchored pattern misses the TBT line, so re-attaching to a block
+                // would stack duplicates. Scheduled runs write real TBT lines today, so
+                // this path is reachable now.
                 continue;
             }
 

@@ -767,7 +767,7 @@ function wpsa_render_compare_results_panel_ui() {
     // before 1.19.0 measured INP, which TBT does not continue - they are a
     // different metric on a different scale, so the old values are not carried
     // into the TBT column. Say so, or the blank cells read as a bug.
-    echo '<p class="wpsa-compare-note description" style="margin:6px 0 10px 0;">'
+    echo '<p class="wpsa-compare-note description">'
        . esc_html__( 'Interaction data recorded before v1.19 was measured as INP and is preserved in the raw log. It is not shown in the TBT column, because TBT is a different metric on a different scale.', 'speed-analyzer' )
        . '</p>';
 

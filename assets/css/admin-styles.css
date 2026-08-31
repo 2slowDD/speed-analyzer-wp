@@ -1899,6 +1899,16 @@ form#wpsa-license-form{
 
 
 
+/* The INP/TBT explanatory note sits between the filter form and the results table.
+   Without a box it spans the full content width and starts at the far-left edge,
+   level with the sidebar rather than the table. Same box as .wpsa-compare-title so
+   its left edge lines up with the table it is explaining. */
+#wpsa-compare-panel .wpsa-compare-note {
+    max-width: 980px !important;   /* same box as .wpsa-compare-title */
+    margin: 6px auto 10px;         /* centred like the title; keeps the old rhythm */
+    text-align: left;
+}
+
 #wpsa-compare-panel .wpsa-compare-title {
     padding-top: 35px;
      max-width:980px !important;      /* match .cr-table max-width */

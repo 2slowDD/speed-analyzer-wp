@@ -521,8 +521,14 @@ add_action( 'wp_ajax_wpsa_log_module5', function () {
         wp_send_json_error( 'Insufficient permissions.' );
     }
 
-    $mobile  = isset( $_POST['mobile'] )  ? sanitize_text_field( wp_unslash( $_POST['mobile'] ) )  : '';
-    $desktop = isset( $_POST['desktop'] ) ? sanitize_text_field( wp_unslash( $_POST['desktop'] ) ) : '';
+    // Each payload is TWO lines - the frozen Module 5 line plus the TBT line that decision
+    // D7 puts on its own line. sanitize_text_field() collapses [\r\n\t ]+ to a single
+    // space, which welded them into one unparseable line: the Module 5 regex is anchored
+    // with $ after INP and the TBT regex with ^, so neither matched and the Compare tab
+    // showed N/A for LCP, FCP, CLS and TBT alike. sanitize_textarea_field() is the
+    // newline-preserving variant and is the correct sanitizer for a multi-line payload.
+    $mobile  = isset( $_POST['mobile'] )  ? sanitize_textarea_field( wp_unslash( $_POST['mobile'] ) )  : '';
+    $desktop = isset( $_POST['desktop'] ) ? sanitize_textarea_field( wp_unslash( $_POST['desktop'] ) ) : '';
 
     $ok = function( $line ) {
         return (bool) preg_match(
@@ -598,13 +604,25 @@ add_action( 'wp_ajax_wpsa_log_module5', function () {
 
 
 
+    // Each payload carries two lines (Module 5 + its TBT line). Push them as separate
+    // entries so $out stays a flat array of log lines, which is what every consumer
+    // downstream assumes - the block-rewrite loop, and the 'written' count.
+    $push_lines = static function( $payload ) use ( &$out ) {
+        foreach ( preg_split( '/\R/', (string) $payload ) as $line ) {
+            $line = trim( $line );
+            if ( '' !== $line ) {
+                $out[] = $line;
+            }
+        }
+    };
+
     if ( $ok( $mobile ) ) {
-        $out[] = trim( $mobile );
+        $push_lines( $mobile );
         $append_cwv_for( $test_no, 'mobile', 'Mobile' );
     }
 
     if ( $ok( $desktop ) ) {
-        $out[] = trim( $desktop );
+        $push_lines( $desktop );
         $append_cwv_for( $test_no, 'desktop', 'Desktop' );
     }
 
@@ -737,9 +755,13 @@ add_action( 'wp_ajax_wpsa_log_module5', function () {
                     for ( $i = $block_start; $i < $block_end; $i++ ) {
                         $line = $lines[ $i ];
 
-                        // Remove any existing Module 5 + CWV lines for this block
+                        // Remove any existing Module 5 + CWV lines for this block.
+                        // \b rather than a literal ':' so this also drops the
+                        // "Module 5 <Device> TBT:" line that decision D7 puts on its own
+                        // line - a ':'-anchored pattern misses it and re-logging a block
+                        // would stack duplicate TBT lines.
                         if (
-                            preg_match( '/^\s*Module\s+5\s+(Mobile|Desktop):/i', $line ) ||
+                            preg_match( '/^\s*Module\s+5\s+(Mobile|Desktop)\b/i', $line ) ||
                             preg_match( '/^\s*Module\s+5\s+CWV\b/i', $line )
                         ) {
                             continue;
