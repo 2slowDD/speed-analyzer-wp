@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'compare.php'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '..', 'includes/compare.php'), 'utf8');
 
 function assert(condition, message) {
   if (!condition) {

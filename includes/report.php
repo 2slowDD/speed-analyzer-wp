@@ -99,7 +99,7 @@ function wpsa_pdf_report_content( $tested_url, $debug_log, $results_log, $test_n
 
 
     // — HEADER —
-    $logo_url = WPSA_PLUGIN_URL . 'SAWP-logo.svg';
+    $logo_url = WPSA_PLUGIN_URL . 'assets/img/SAWP-logo.svg';
     $ver      = defined( 'WPSA_VERSION' ) ? WPSA_VERSION : 'unknown';
     ?>
     <div id="pdf-header" style="position:fixed; top:10px; left:20px; right:20px;

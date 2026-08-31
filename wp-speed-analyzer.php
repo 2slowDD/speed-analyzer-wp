@@ -52,16 +52,16 @@ if ( ! defined( 'WPSA_GATEKEEPER_URL' ) ) {
 }
 
 // Load core modules
-require_once WPSA_PLUGIN_DIR . 'helpers.php';
-require_once WPSA_PLUGIN_DIR . 'modules.php';
-require_once WPSA_PLUGIN_DIR . 'diagnostics.php';
-require_once WPSA_PLUGIN_DIR . 'summary.php';
-require_once WPSA_PLUGIN_DIR . 'conclusion.php';
-require_once WPSA_PLUGIN_DIR . 'report.php';
-require_once WPSA_PLUGIN_DIR . 'lpanel.php';
-require_once WPSA_PLUGIN_DIR . 'schedule.php';
-require_once WPSA_PLUGIN_DIR . 'compare.php';
-require_once WPSA_PLUGIN_DIR . 'editors.php';
+require_once WPSA_PLUGIN_DIR . 'includes/helpers.php';
+require_once WPSA_PLUGIN_DIR . 'includes/modules.php';
+require_once WPSA_PLUGIN_DIR . 'includes/diagnostics.php';
+require_once WPSA_PLUGIN_DIR . 'includes/summary.php';
+require_once WPSA_PLUGIN_DIR . 'includes/conclusion.php';
+require_once WPSA_PLUGIN_DIR . 'includes/report.php';
+require_once WPSA_PLUGIN_DIR . 'includes/lpanel.php';
+require_once WPSA_PLUGIN_DIR . 'includes/schedule.php';
+require_once WPSA_PLUGIN_DIR . 'includes/compare.php';
+require_once WPSA_PLUGIN_DIR . 'includes/editors.php';
 
 /**
  * --- AJAX endpoint to render PDF markup on demand ---
@@ -215,19 +215,19 @@ function wpsa_ajax_pdf_quota() {
         }
     
        // Core CSS & JS
-        $css = WPSA_PLUGIN_DIR . 'admin-styles.css';
-        $js  = WPSA_PLUGIN_DIR . 'admin-scripts.js';
+        $css = WPSA_PLUGIN_DIR . 'assets/css/admin-styles.css';
+        $js  = WPSA_PLUGIN_DIR . 'assets/js/admin-scripts.js';
         
         wp_enqueue_style(
             'wpsa-admin-styles',
-            WPSA_PLUGIN_URL . 'admin-styles.css',
+            WPSA_PLUGIN_URL . 'assets/css/admin-styles.css',
             [],
             file_exists( $css ) ? filemtime( $css ) : SAWP_VERSION
         );
         
         wp_enqueue_script(
             'wpsa-admin-scripts',
-            WPSA_PLUGIN_URL . 'admin-scripts.js',
+            WPSA_PLUGIN_URL . 'assets/js/admin-scripts.js',
             [ 'jquery' ],
             file_exists( $js ) ? filemtime( $js ) : SAWP_VERSION,
             true
@@ -238,30 +238,30 @@ function wpsa_ajax_pdf_quota() {
         wp_enqueue_script( 'jquery-ui-dialog' );
 
         // Widgets / small UI helpers
-        $widgets_js = WPSA_PLUGIN_DIR . 'admin-widgets.js';
+        $widgets_js = WPSA_PLUGIN_DIR . 'assets/js/admin-widgets.js';
         wp_enqueue_script(
             'wpsa-admin-widgets',
-            WPSA_PLUGIN_URL . 'admin-widgets.js',
+            WPSA_PLUGIN_URL . 'assets/js/admin-widgets.js',
             [ 'jquery', 'jquery-ui-dialog' ],
             file_exists( $widgets_js ) ? filemtime( $widgets_js ) : SAWP_VERSION,
             true
         );
         
         // CWV small UI helper (Module 5)
-        $cwv_ui_js = WPSA_PLUGIN_DIR . 'cwv-ui.js';
+        $cwv_ui_js = WPSA_PLUGIN_DIR . 'assets/js/cwv-ui.js';
         wp_enqueue_script(
             'wpsa-cwv-ui',
-            WPSA_PLUGIN_URL . 'cwv-ui.js',
+            WPSA_PLUGIN_URL . 'assets/js/cwv-ui.js',
             [ 'jquery' ],
             file_exists( $cwv_ui_js ) ? filemtime( $cwv_ui_js ) : SAWP_VERSION,
             true
         );
         
           // Schedule tab scripts (dynamic URL rows, polling UI helpers)
-        $schedule_js = WPSA_PLUGIN_DIR . 'schedule-scripts.js';
+        $schedule_js = WPSA_PLUGIN_DIR . 'assets/js/schedule-scripts.js';
         wp_enqueue_script(
             'wpsa-schedule-scripts',
-            WPSA_PLUGIN_URL . 'schedule-scripts.js',
+            WPSA_PLUGIN_URL . 'assets/js/schedule-scripts.js',
             [ 'jquery' ],
             file_exists( $schedule_js ) ? filemtime( $schedule_js ) : SAWP_VERSION,
             true
@@ -331,7 +331,7 @@ function wpsa_ajax_pdf_quota() {
 
     wp_enqueue_script(
         'wpsa-report-scripts',
-        WPSA_PLUGIN_URL . 'report-scripts.js',
+        WPSA_PLUGIN_URL . 'assets/js/report-scripts.js',
         [ 'jquery', 'wpsa-html2pdf' ],
         SAWP_VERSION,
         true
@@ -340,7 +340,7 @@ function wpsa_ajax_pdf_quota() {
     // PDF-only CSS moved out of inline <style id="wpsa-pdf-only"> to external file
     wp_enqueue_style(
         'wpsa-report-styles',
-        WPSA_PLUGIN_URL . 'report-styles.css',
+        WPSA_PLUGIN_URL . 'assets/css/report-styles.css',
         [],
         SAWP_VERSION
     );
@@ -702,7 +702,7 @@ function wpsa_render_customize_pdf_panel() {
       <!-- Brand PDF header -->
       <h1 class="header-brand">
         <img class="wpsa-logo"
-             src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
+             src="<?php echo esc_url( WPSA_PLUGIN_URL . 'assets/img/SAWP-logo.svg' ); ?>"
              alt="Speed Analyzer Logo">
         <div class="wpsa-header-info">
           <span class="wpsa-name">Speed Analyzer</span>
@@ -930,7 +930,7 @@ function wpsa_render_tool_page() {
           <div class="wrap">
             <h1 class="wpsa-header">
               <img class="wpsa-logo"
-                   src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
+                   src="<?php echo esc_url( WPSA_PLUGIN_URL . 'assets/img/SAWP-logo.svg' ); ?>"
                    alt="Speed Analyzer Logo">
               <div class="wpsa-header-info">
                 <span class="wpsa-name">Speed Analyzer</span>
@@ -1103,7 +1103,7 @@ function wpsa_render_tool_page() {
           <div class="wrap" style="margin:0 auto;">
             <h1 class="wpsa-header">
               <img class="wpsa-logo"
-                   src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
+                   src="<?php echo esc_url( WPSA_PLUGIN_URL . 'assets/img/SAWP-logo.svg' ); ?>"
                    alt="<?php esc_attr_e( 'Speed Analyzer Logo', 'speed-analyzer' ); ?>">
               <div class="wpsa-header-info">
                 <span class="wpsa-name"><?php esc_html_e( 'License', 'speed-analyzer' ); ?></span>

@@ -12,7 +12,7 @@
  */
 
 $root = dirname( __DIR__ );
-$src  = file_get_contents( $root . '/helpers.php' );
+$src  = file_get_contents( $root . '/includes/helpers.php' );
 // helpers.php ships CRLF; normalise so the extraction regex is line-ending agnostic.
 $src  = str_replace( array( "\r\n", "\r" ), "\n", $src );
 

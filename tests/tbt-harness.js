@@ -14,7 +14,15 @@ function assert(condition, message) {
 }
 
 function loadSrc(file) {
-  return fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+  // The plugin is no longer flat: PHP lives in includes/, JS in assets/js/, CSS in
+  // assets/css/. Callers still pass a bare filename, so resolve it across the layout
+  // and fail loudly if it is nowhere - a silently-skipped file would fake a pass.
+  const dirs = ['', 'includes', 'assets/js', 'assets/css', 'assets/img'];
+  for (const d of dirs) {
+    const p = path.join(__dirname, '..', d, file);
+    if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+  }
+  throw new Error('loadSrc: cannot find ' + file + ' anywhere in the plugin layout');
 }
 
 // Lift a named function out of a source file by brace-matching, so it can be

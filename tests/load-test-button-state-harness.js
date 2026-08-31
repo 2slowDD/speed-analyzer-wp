@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const js = fs.readFileSync(path.join(__dirname, '..', 'admin-scripts.js'), 'utf8');
+const js = fs.readFileSync(path.join(__dirname, '..', 'assets/js/admin-scripts.js'), 'utf8');
 
 const stateFn = js.match(/function wpsa_updateLoadBtnState\(\)\s*\{[\s\S]*?\n\}/);
 assert(stateFn, 'Missing wpsa_updateLoadBtnState');

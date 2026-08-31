@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const source = fs.readFileSync(path.join(root, 'report-scripts.js'), 'utf8');
+const source = fs.readFileSync(path.join(root, 'assets/js/report-scripts.js'), 'utf8');
 const message = 'Please wait a moment while the PDF report is being built.';
 
 function assert(condition, message) {

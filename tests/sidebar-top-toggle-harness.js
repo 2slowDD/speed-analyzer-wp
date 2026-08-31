@@ -4,11 +4,11 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const php = fs.readFileSync(path.join(root, 'wp-speed-analyzer.php'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'admin-styles.css'), 'utf8');
-const js = fs.readFileSync(path.join(root, 'admin-scripts.js'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'assets/css/admin-styles.css'), 'utf8');
+const js = fs.readFileSync(path.join(root, 'assets/js/admin-scripts.js'), 'utf8');
 const readme = fs.readFileSync(path.join(root, 'readme.txt'), 'utf8');
 const readmeMd = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-const reportJs = fs.readFileSync(path.join(root, 'report-scripts.js'), 'utf8');
+const reportJs = fs.readFileSync(path.join(root, 'assets/js/report-scripts.js'), 'utf8');
 
 const toggleIndex = php.indexOf('id="wpsa-sidebars-top-toggle"');
 const navIndex = php.indexOf('class="wpsa-sidebar-nav"');

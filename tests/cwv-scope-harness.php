@@ -52,8 +52,8 @@ function wpsa_read_norm( $path ) {
 	return str_replace( array( "\r\n", "\r" ), "\n", file_get_contents( $path ) );
 }
 
-$diag    = wpsa_read_norm( $root . '/diagnostics.php' );
-$editors = wpsa_read_norm( $root . '/editors.php' );
+$diag    = wpsa_read_norm( $root . '/includes/diagnostics.php' );
+$editors = wpsa_read_norm( $root . '/includes/editors.php' );
 
 $parser = wpsa_lift_fn( $diag, 'wpsa_parse_cwv_p75_from_line' );
 if ( null === $parser ) {

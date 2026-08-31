@@ -3218,7 +3218,7 @@ function wpsa_render_schedule_panel_ui() {
     <!-- Header: same layout as Tests tab, outside the white card -->
     <h1 class="wpsa-header">
         <img class="wpsa-logo"
-             src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
+             src="<?php echo esc_url( WPSA_PLUGIN_URL . 'assets/img/SAWP-logo.svg' ); ?>"
              alt="Speed Analyzer Logo">
         <div class="wpsa-header-info">
             <span class="wpsa-name">Speed Analyzer</span>
