@@ -841,8 +841,13 @@ defined( 'ABSPATH' ) || exit;
           echo '<p><strong>' . esc_html($device . ' ' . $label . ': ' . $disp) . '</strong>' . ( $sev === 'good' ? ' ✅' : '' ) . '</p>';
     
           if ( !is_null($val) ) {
-            echo '<p>' . esc_html( $wpsa_conclusion_map['module_5'][ $metric ][ $sev ]['explanation'] ) . '</p>';
-            echo '<p><strong>💡 Advice:</strong> ' . esc_html( $wpsa_conclusion_map['module_5'][ $metric ][ $sev ]['advice'] ) . '</p>';
+            // $map_key, not $metric. TBT is graded per form factor, so its copy lives
+            // under 'tbt_mobile' / 'tbt_desktop' and there is no module_5['tbt'] key.
+            // The severity line above already used $map_key, so the card coloured and
+            // ticked correctly while both strings below silently resolved to null -
+            // every TBT card rendered a bare "Advice:" with nothing after it.
+            echo '<p>' . esc_html( $wpsa_conclusion_map['module_5'][ $map_key ][ $sev ]['explanation'] ) . '</p>';
+            echo '<p><strong>💡 Advice:</strong> ' . esc_html( $wpsa_conclusion_map['module_5'][ $map_key ][ $sev ]['advice'] ) . '</p>';
           } else {
             echo '<p>' . esc_html( $label ) . ' data not available for ' . esc_html( strtolower($device) ) . '.</p>';
           }
