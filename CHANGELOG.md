@@ -11,8 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Advice text for this metric now describes main-thread blocking and long tasks rather than interaction latency.
 
 ### Fixed
+- **The Core Web Vitals (field) block showed `--` for every metric on pages where real user data existed.** When CrUX publishes a page-level record that carries LCP, CLS, FCP and TTFB but no INP, the three-of-three assessment cannot be computed and is reported as N/A - but the p75 values are real. The results-log reader matched only PASSED or FAILED, so it discarded the whole line, including four measurements it had just written. The assessment itself still reads N/A in that case; no verdict is invented.
+- The Posts/Pages speed column could not read the Core Web Vitals scope label written for page-scope results, so the column stayed blank for passing pages.
 - Millisecond values above 1000 were parsed as decimals when PageSpeed Insights formatted them with a thousands separator, so "1,910 ms" was read as 1.91 ms. This affected the results log as well as the on-screen colour coding.
 - A Total Blocking Time of exactly 0 ms is now recorded rather than reported as N/A. Zero is a normal result on a well-optimised page.
+
+### Internal
+- Plugin URLs and paths now resolve from `WPSA_PLUGIN_URL` / `WPSA_PLUGIN_DIR`, anchored to the main plugin file, instead of `plugin_dir_url( __FILE__ )` which resolved relative to whichever file happened to call it.
+- Source files moved out of the plugin root: PHP into `includes/`, scripts into `assets/js/`, stylesheets into `assets/css/`, the logo into `assets/img/`. `wp-speed-analyzer.php` and `readme.txt` stay at the root.
+- `.gitattributes` freezes line endings (`* -text`), and `admin-styles.css` - which had mixed CRLF/LF since before 1.18.6 - is now internally uniform.
 
 ### Notes
 - **The Core Web Vitals (field) assessment still reports INP.** That block shows real-user CrUX data, where Google defines the assessment as LCP + INP + CLS, and no field equivalent of TBT exists. TBT is Google's lab *proxy* for INP, not a replacement for it.

@@ -80,3 +80,45 @@ This plugin delegates all testing to remote services. **No personal data is coll
 
 ## Repository Structure
 
+```
+wp-speed-analyzer.php     bootstrap - constants, admin menu, asset enqueue, PDF/quota AJAX
+readme.txt                WordPress.org readme (must stay at the plugin root)
+README.md  CHANGELOG.md  LICENSE  license.txt
+.gitattributes            freezes line endings (`* -text`) - see the note below
+
+includes/                 all plugin logic, loaded in a fixed order by the main file
+  helpers.php               shared utilities, CWV field extraction, debug-log sink
+  modules.php               Modules 3/4/4.5 - autoloaded options, object cache, environment
+  diagnostics.php           Module 5 - PageSpeed acquisition, results-log writer/reader
+  summary.php               Module 6 - summary tables
+  conclusion.php            Module 7 - conclusion and advice
+  report.php                PDF report markup
+  lpanel.php                license panel
+  schedule.php              scheduled runs, batching, alert emails
+  compare.php               Compare tab and trends chart
+  editors.php               Posts/Pages speed column and row actions
+
+assets/
+  js/                     admin-scripts, admin-widgets, cwv-ui, report-scripts,
+                          schedule-scripts + vendored chart.umd.min.js, html2pdf.bundle.min.js
+  css/                    admin-styles.css, report-styles.css
+  img/                    SAWP-logo.svg and product thumbnails
+
+tests/                    standalone harnesses - no framework, no build step.
+                          Run a single one with `node tests/<name>.js` or `php tests/<name>.php`.
+```
+
+### Two things worth knowing before you move a file
+
+**Paths are anchored to the main file, not to the caller.** `WPSA_PLUGIN_URL` and
+`WPSA_PLUGIN_DIR` are defined in `wp-speed-analyzer.php` from `WPSA_PLUGIN_FILE`. Do not
+reintroduce `plugin_dir_url( __FILE__ )` - it resolves relative to the *calling* file, so a
+caller in `includes/` would build `<plugin>/includes/...` and every asset URL from it would
+404. `tests/plugin-path-constants-harness.php` fails if any shipped PHP does this.
+
+**Line endings are frozen, not normalised.** The repo deliberately mixes conventions across
+files (CRLF for most of `includes/`, LF for the main file and `tests/`). Every file is
+internally uniform, which is what Plugin Check actually checks. `.gitattributes` sets
+`* -text` so git stores the bytes on disk verbatim; without it `core.autocrlf` rewrote files
+on every `git add` and buried real changes under line-ending noise.
+
