@@ -1,0 +1,15 @@
+# Freeze line endings: store and check out every file exactly as it is on disk.
+#
+# This repo deliberately mixes conventions ACROSS files - schedule.php, compare.php,
+# conclusion.php and admin-scripts.js are CRLF; wp-speed-analyzer.php, readme.txt,
+# CHANGELOG.md and tests/* are LF. Plugin Check's Internal.LineEndings.Mixed fires on
+# files that mix INTERNALLY, which none of them do, so the across-file mix is fine.
+#
+# `core.autocrlf=true` was silently converting on every `git add`, so a correct CRLF
+# working tree could still land as an LF blob. That churn repeatedly buried real
+# changes: one commit reached 6,847 insertions for 287 real lines.
+#
+# `-text` disables conversion in both directions. It freezes the current bytes rather
+# than renormalising, so it does NOT rewrite the four CRLF files to LF the way the
+# conventional `* text=auto` would.
+* -text
