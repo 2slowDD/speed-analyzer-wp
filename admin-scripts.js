@@ -2596,7 +2596,13 @@ function wpsa_updateLoadBtnState() {
             // Accept "220 ms", "0.22 s", "220", etc → integer ms or "N/A"
             var m = String(val || '').match(/([\d.,]+)\s*(ms|s)?/i);
             if (!m) return 'N/A';
-            var v = parseFloat(m[1].replace(',', '.'));
+            // "1,910" is a thousands separator (PSI formats TBT that way once it
+            // crosses 1000 ms); "0,22" is a decimal comma. Only the fully-grouped
+            // form counts as thousands. This value is written to the results log,
+            // so a misread would be persisted.
+            var v = parseFloat(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(m[1])
+                      ? m[1].replace(/,/g, '')
+                      : m[1].replace(',', '.'));
             if (!isFinite(v)) return 'N/A';
             var unit = (m[2] || 'ms').toLowerCase();
             return String(unit === 's' ? Math.round(v * 1000) : Math.round(v));
@@ -2878,7 +2884,10 @@ function wpsa_renderM5DiagFromState() {
     function parseMs(str){
       var m = String(str||'').match(/([\d.,]+)\s*(ms|s)?/i);
       if (!m) return NaN;
-      var v = parseFloat(m[1].replace(',', '.'));
+      // Thousands separator vs decimal comma — see inpMs() above.
+      var v = parseFloat(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(m[1])
+                ? m[1].replace(/,/g, '')
+                : m[1].replace(',', '.'));
       if (!isFinite(v)) return NaN;
       var u = (m[2]||'ms').toLowerCase();
       return u === 's' ? v*1000 : v;

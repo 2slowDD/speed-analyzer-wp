@@ -1276,7 +1276,11 @@ jQuery(function($){
                 if (!raw || /^N\/A$/i.test(raw)) return null;
                 const m = String(raw).match(/([\d.,]+)\s*(ms|s)?/i);
                 if (!m) return null;
-                const num  = parseFloat(m[1].replace(',', '.'));
+                // "1,910" = thousands separator (PSI formats TBT that way above
+                // 1000 ms); "0,22" = decimal comma. Only the grouped form counts.
+                const num  = parseFloat(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(m[1])
+                               ? m[1].replace(/,/g, '')
+                               : m[1].replace(',', '.'));
                 const unit = (m[2] || 'ms').toLowerCase();
                 if (!Number.isFinite(num)) return null;
                 return unit === 's' ? Math.round(num * 1000) : Math.round(num);
@@ -1554,7 +1558,11 @@ jQuery(function($){
                 if (!raw || /^N\/A$/i.test(raw)) return null;
                 const m = String(raw).match(/([\d.,]+)\s*(ms|s)?/i);
                 if (!m) return null;
-                const num  = parseFloat(m[1].replace(',', '.'));
+                // "1,910" = thousands separator (PSI formats TBT that way above
+                // 1000 ms); "0,22" = decimal comma. Only the grouped form counts.
+                const num  = parseFloat(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(m[1])
+                               ? m[1].replace(/,/g, '')
+                               : m[1].replace(',', '.'));
                 const unit = (m[2] || 'ms').toLowerCase();
                 if (!Number.isFinite(num)) return null;
                 return unit === 's' ? Math.round(num * 1000) : Math.round(num);
