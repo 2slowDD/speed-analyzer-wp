@@ -85,7 +85,7 @@ function wpsa_module5_performance_diagnostics( $tested_url, $results_log ) {
             echo '<div class="wpsa-stat-card wpsa-card-lcp"><div class="header">LCP <span class="custom-tooltip" data-tooltip="Largest Contentful Paint marks the time at which the largest text or image is painted.">?</span></div><div class="value" id="lcp-mobile">--</div></div>';
             echo '<div class="wpsa-stat-card wpsa-card-fcp"><div class="header">FCP <span class="custom-tooltip" data-tooltip="First Contentful Paint marks the time at which the first text or image is painted.">?</span></div><div class="value" id="fcp-mobile">--</div></div>';
               echo '<div class="wpsa-stat-card wpsa-card-cls"><div class="header">CLS <span class="custom-tooltip" data-tooltip="Cumulative Layout Shift measures visual stability.">?</span></div><div class="value" id="cls-mobile">--</div></div>';
-            echo '<div class="wpsa-stat-card wpsa-card-inp"><div class="header">INP <span class="custom-tooltip" data-tooltip="Interaction to Next Paint reflects overall responsiveness.  Only shown if there is available data from the lab test or the CrUX field (p75).">?</span></div><div class="value" id="inp-mobile">--</div></div>';
+            echo '<div class="wpsa-stat-card wpsa-card-inp"><div class="header">TBT <span class="custom-tooltip" data-tooltip="Total Blocking Time measures how long the main thread was blocked during load, so the page could not respond to input. Lower is better. Google PageSpeed Insights reports this as a lab metric.">?</span></div><div class="value" id="inp-mobile">--</div></div>';
 
           echo '</div>';
           echo '<p class="wpsa-footnote">*Values are estimated and may vary. The performance score is calculated directly from PSI metrics. As on <a href="https://googlechrome.github.io/lighthouse/scorecalc/" target="_blank">PageSpeed dev</a>.</p>';
@@ -132,7 +132,7 @@ function wpsa_module5_performance_diagnostics( $tested_url, $results_log ) {
             echo '<div class="wpsa-stat-card wpsa-card-lcp"><div class="header">LCP <span class="custom-tooltip" data-tooltip="Largest Contentful Paint.">?</span></div><div class="value" id="lcp-desktop">--</div></div>';
             echo '<div class="wpsa-stat-card wpsa-card-fcp"><div class="header">FCP <span class="custom-tooltip" data-tooltip="First Contentful Paint.">?</span></div><div class="value" id="fcp-desktop">--</div></div>';
               echo '<div class="wpsa-stat-card wpsa-card-cls"><div class="header">CLS <span class="custom-tooltip" data-tooltip="Cumulative Layout Shift (lower is better).">?</span></div><div class="value" id="cls-desktop">--</div></div>';
-              echo '<div class="wpsa-stat-card wpsa-card-inp"><div class="header">INP <span class="custom-tooltip" data-tooltip="Interaction to Next Paint (lower is better).">?</span></div><div class="value" id="inp-desktop">--</div></div>';
+              echo '<div class="wpsa-stat-card wpsa-card-inp"><div class="header">TBT <span class="custom-tooltip" data-tooltip="Total Blocking Time (lower is better).">?</span></div><div class="value" id="inp-desktop">--</div></div>';
 
           echo '</div>';
           echo '<p class="wpsa-footnote">*Values are estimated and may vary. The performance score is calculated directly from PSI metrics. As on <a href="https://googlechrome.github.io/lighthouse/scorecalc/" target="_blank">PageSpeed dev</a>.</p>';

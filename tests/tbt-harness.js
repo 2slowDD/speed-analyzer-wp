@@ -453,4 +453,144 @@ assert(
   'parses the very metric this release introduces.'
 );
 
+// ---------------------------------------------------------------------------
+// AC-10 — customer-visible copy, and the D3 history notice.
+// ---------------------------------------------------------------------------
+const editorsSrc = loadSrc('editors.php');
+const diagSrc2 = loadSrc('diagnostics.php');
+
+assert(
+  cmpSrc.indexOf('measured as INP and is preserved in the raw log') !== -1 &&
+  /v1\.19/.test(cmpSrc),
+  'The Compare tab must carry the D3 history notice naming the version, or the blank ' +
+  'pre-upgrade cells read as a bug.'
+);
+assert(
+  cmpSrc.indexOf('<span class="h-main">TBT (ms)</span>') !== -1,
+  'The Compare column header must read TBT (ms).'
+);
+assert(
+  reportSrc.indexOf('Your TBT is') !== -1 && reportSrc.indexOf('Your INP is') === -1,
+  'The PDF pages must report TBT, not INP.'
+);
+assert(
+  /long tasks|main thread|main-thread/i.test(reportSrc),
+  'PDF advice must describe main-thread blocking, not interaction latency.'
+);
+assert(
+  conclSrc.indexOf('interaction latency') === -1 &&
+  conclSrc.indexOf('interactions feel instant') === -1,
+  'conclusion.php advice must no longer describe INP-style interaction latency.'
+);
+assert(
+  schedSrc.indexOf("$body .= 'TBT: <span") !== -1,
+  'The scheduled email must label the row TBT.'
+);
+assert(
+  schedSrc.indexOf('INP 200ms') === -1 && /TBT 200ms mobile \/ 150ms desktop/.test(schedSrc),
+  'The scheduler threshold prose must quote both device TBT numbers.'
+);
+assert(
+  editorsSrc.indexOf(">TBT: '") !== -1 && editorsSrc.indexOf('\\bTBT\\s*:') !== -1,
+  'The editor column must be labelled TBT and read the TBT log line.'
+);
+assert(
+  diagSrc2.indexOf('<div class="header">TBT ') !== -1,
+  'The score tiles must be labelled TBT.'
+);
+assert(
+  loadSrc('summary.php').indexOf('<div class="header">TBT</div>') !== -1,
+  'The summary tile must be labelled TBT.'
+);
+
+// D8 — the alert metric setting is the one genuinely persisted key.
+assert(
+  /\$allowed_reg_metrics\s*=\s*array\([^)]*'tbt'[^)]*'inp'[^)]*\)/.test(schedSrc) &&
+  /\$allowed_thresh_metrics\s*=\s*array\([^)]*'tbt'[^)]*'inp'[^)]*\)/.test(schedSrc),
+  'Both alert allowlists must accept "tbt" AND keep "inp" as a legacy alias, or an alert ' +
+  'configured before 1.19.0 is rejected on the next save.'
+);
+assert(
+  schedSrc.indexOf("if ( 'inp' === $reg_metric ) {") !== -1 &&
+  schedSrc.indexOf("if ( 'inp' === $th_metric ) {") !== -1,
+  'A legacy "inp" setting already in the database must be normalised to "tbt" ON READ, ' +
+  'not only when the user re-saves.'
+);
+assert(
+  schedSrc.indexOf("$prev_dev['tbt'] ?? $prev_dev['inp'] ?? null") !== -1,
+  'Regression comparison must fall back to the legacy "inp" key in previous-run snapshots.'
+);
+// Every surviving `'inp' === $x` branch must be a NORMALISER (its body assigns
+// 'tbt'). A comparison branch that merely acts on 'inp' would be dead code once
+// the value is normalised upstream, and the alert would silently never fire.
+const inpBranches = [];
+const branchRe = /if \(\s*'inp'\s*===\s*\$(\w+)\s*\)\s*\{([\s\S]{0,120}?)\}/g;
+let bm;
+while ((bm = branchRe.exec(schedSrc)) !== null) {
+  inpBranches.push({ variable: bm[1], body: bm[2] });
+}
+assert(inpBranches.length > 0, 'The D8 legacy-alias normalisers must exist.');
+for (const br of inpBranches) {
+  assert(
+    /=\s*'tbt'/.test(br.body),
+    'The branch on $' + br.variable + " compares against 'inp' but does not normalise to " +
+    "'tbt'. Once the value is normalised upstream such a branch is dead, and the alert " +
+    'would silently never fire. Body: ' + JSON.stringify(br.body.trim().slice(0, 80))
+  );
+}
+assert(
+  !/elseif \(\s*'inp'\s*===\s*\$(th_metric|mk)\s*\)/.test(schedSrc),
+  'No alert comparison branch may still test for "inp" — the value is normalised to ' +
+  '"tbt" before those run.'
+);
+assert(
+  schedSrc.indexOf('<option value="tbt"') !== -1 && schedSrc.indexOf('<option value="inp"') === -1,
+  'The alert dropdowns must offer TBT.'
+);
+
+// ---------------------------------------------------------------------------
+// AC-9 — the FIELD lane must keep INP.
+//
+// This guard exists because "replace INP with TBT everywhere" is the obvious
+// reading, and acting on it here would be a correctness bug, not a cosmetic one.
+// TBT has no CrUX field data. Google defines the Core Web Vitals assessment as
+// LCP + INP + CLS, so dropping INP makes it a two-of-three check that can print
+// PASSED for a site Google marks FAILED, on a customer report. Google's own
+// guidance: TBT is "a proxy metric for INP in the lab".
+// ---------------------------------------------------------------------------
+const helpersSrc = loadSrc('helpers.php');
+const cwvUiSrc = loadSrc('cwv-ui.js');
+
+assert(
+  helpersSrc.indexOf('INTERACTION_TO_NEXT_PAINT') !== -1,
+  'helpers.php must still read INTERACTION_TO_NEXT_PAINT — the field lane keeps INP.'
+);
+const assessStart = helpersSrc.indexOf('function wpsa_cwv_assessment_from_metrics');
+assert(assessStart !== -1, 'wpsa_cwv_assessment_from_metrics() must still exist.');
+const assessBody = helpersSrc.slice(assessStart, assessStart + 1800);
+for (const k of ['LARGEST_CONTENTFUL_PAINT_MS', 'CUMULATIVE_LAYOUT_SHIFT_SCORE',
+                 'INTERACTION_TO_NEXT_PAINT']) {
+  assert(
+    assessBody.indexOf(k) !== -1,
+    'The CWV assessment must still require ' + k + '. All three are needed: a two-of-three ' +
+    'verdict can print PASSED where Google reports FAILED.'
+  );
+}
+assert(
+  assessBody.indexOf('total-blocking-time') === -1 && assessBody.indexOf('TBT') === -1,
+  'TBT must NEVER appear in the field CWV assessment — there is no field TBT.'
+);
+assert(
+  cwvUiSrc.indexOf('75th percentile INP') !== -1,
+  'cwv-ui.js is the CrUX field panel and must keep its INP block.'
+);
+assert(
+  cwvUiSrc.indexOf('TBT') === -1,
+  'cwv-ui.js must not mention TBT — it renders real-user field data only.'
+);
+assert(
+  cwvUiSrc.indexOf('gradeInpMs') !== -1 && /if \(v <= 200\) return 'good'/.test(cwvUiSrc),
+  "cwv-ui.js must keep INP's device-independent Core Web Vitals thresholds (200/500)."
+);
+
 console.log('OK tbt-harness');

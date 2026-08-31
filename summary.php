@@ -59,7 +59,7 @@ function wpsa_module6_summary( $tested_url, $results_log ) {
                         <div class="value"><span class="score">Loading…</span></div>
                     </div>
                     <div class="psi-half inp">
-                        <div class="header">INP</div>
+                        <div class="header">TBT</div>
                         <div class="value"><span class="score">Loading…</span></div>
                     </div>
                 </div>

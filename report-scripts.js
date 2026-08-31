@@ -1317,9 +1317,9 @@ jQuery(function($){
                 `Your CLS is ${clsRawM} — large layout shifts. Reserve space for media/ads, pre-size containers, avoid inserting content above existing content.`
               ];
               const tbtMsgsM = [
-                `Your INP is ${tbtMsM} ms — no action needed.`,
-                `Your INP is ${tbtMsM} ms — reduce main-thread work and long tasks; optimize input handlers and third-party scripts.`,
-                `Your INP is ${tbtMsM} ms — poor input responsiveness. Break up long tasks, defer non-critical JS, and optimize event listeners.`
+                `Your TBT is ${tbtMsM} ms — no action needed.`,
+                `Your TBT is ${tbtMsM} ms — long tasks are blocking the main thread during load. Break up long JavaScript tasks and defer non-critical scripts.`,
+                `Your TBT is ${tbtMsM} ms — the main thread is blocked for long stretches. Split large bundles, remove unused JavaScript, and cut third-party widgets.`
               ];
             
               // CLS line (falls back to neutral if metric is N/A)
@@ -1331,7 +1331,7 @@ jQuery(function($){
             
               // INP line (falls back to neutral if metric is N/A)
               if (tbtLvM === -1){
-                $page3.append(`<p style="font-size:1em;color:#666;margin-bottom:20px;"><strong>Your INP is N/A — metric not available for this run.</strong></p>`);
+                $page3.append(`<p style="font-size:1em;color:#666;margin-bottom:20px;"><strong>Your TBT is N/A — metric not available for this run.</strong></p>`);
               } else {
                 $page3.append(`<p style="font-size:1em;color:${statusCols[tbtLvM]};"><strong>${tbtMsgsM[tbtLvM]}</strong></p>`);
               }
@@ -1590,9 +1590,9 @@ jQuery(function($){
                 `Your CLS is ${clsRawD} — large layout shifts. Reserve space for media/ads, pre-size containers, avoid inserting content above existing content.`
               ];
               const tbtMsgsD = [
-                `Your INP is ${tbtMsD} ms — no action needed.`,
-                `Your INP is ${tbtMsD} ms — reduce main-thread work and long tasks; optimize input handlers and third-party scripts.`,
-                `Your INP is ${tbtMsD} ms — poor input responsiveness. Break up long tasks, defer non-critical JS, and optimize event listeners.`
+                `Your TBT is ${tbtMsD} ms — no action needed.`,
+                `Your TBT is ${tbtMsD} ms — long tasks are blocking the main thread during load. Break up long JavaScript tasks and defer non-critical scripts.`,
+                `Your TBT is ${tbtMsD} ms — the main thread is blocked for long stretches. Split large bundles, remove unused JavaScript, and cut third-party widgets.`
               ];
             
               if (clsLvD === -1){
@@ -1602,7 +1602,7 @@ jQuery(function($){
               }
             
               if (tbtLvD === -1){
-                $page4.append(`<p style="font-size:1em;color:#666;margin-bottom:20px;"><strong>Your INP is N/A — metric not available for this run.</strong></p>`);
+                $page4.append(`<p style="font-size:1em;color:#666;margin-bottom:20px;"><strong>Your TBT is N/A — metric not available for this run.</strong></p>`);
               } else {
                 $page4.append(`<p style="font-size:1em;color:${statusColsD[tbtLvD]};"><strong>${tbtMsgsD[tbtLvD]}</strong></p>`);
               }

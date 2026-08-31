@@ -763,6 +763,14 @@ function wpsa_render_compare_results_panel_ui() {
     echo '</form>';
 
 
+    // Decision D3: clean break on the responsiveness metric. Tests recorded
+    // before 1.19.0 measured INP, which TBT does not continue - they are a
+    // different metric on a different scale, so the old values are not carried
+    // into the TBT column. Say so, or the blank cells read as a bug.
+    echo '<p class="wpsa-compare-note description" style="margin:6px 0 10px 0;">'
+       . esc_html__( 'Interaction data recorded before v1.19 was measured as INP and is preserved in the raw log. It is not shown in the TBT column, because TBT is a different metric on a different scale.', 'speed-analyzer' )
+       . '</p>';
+
     // HEAD echo '<th class="col-datetime">Date/Time</th>';
     echo '<div class="cr-table"><table class="widefat striped fixed">';
     echo '<thead><tr>';
@@ -774,7 +782,7 @@ function wpsa_render_compare_results_panel_ui() {
     echo '<th class="col-lcp"><span class="h-main">LCP (s)</span><span class="h-sub">Mobile / Desktop</span></th>';
     echo '<th class="col-fcp"><span class="h-main">FCP (s)</span><span class="h-sub">Mobile / Desktop</span></th>';
     echo '<th class="col-cls"><span class="h-main">CLS</span><span class="h-sub">Mobile / Desktop</span></th>';
-    echo '<th class="col-inp"><span class="h-main">INP (ms)</span><span class="h-sub">Mobile / Desktop</span></th>';
+    echo '<th class="col-inp"><span class="h-main">TBT (ms)</span><span class="h-sub">Mobile / Desktop</span></th>';
     echo '<th class="col-req"><span class="h-main">Requests</span><span class="h-sub">Mobile / Desktop</span></th>';
     echo '<th class="col-psize"><span class="h-main">Page size</span><span class="h-sub">(KB) — Mobile / Desktop</span></th>';
     echo '<th class="col-onjs"><span class="h-main">Onload JS</span></th>';
@@ -1164,7 +1172,7 @@ function wpsa_render_compare_results_panel_ui() {
             $render_row('FCP',              $B['m5m_fcp'],  $A['m5m_fcp'],  's', true,  false, $shade);
             $shade = !$shade;
             $render_row('CLS', $B['m5m_cls'], $A['m5m_cls'], '',  true,  false, $shade);
-            $render_row('INP', $B['m5m_tbt'], $A['m5m_tbt'], 'ms', true,  false, $shade);
+            $render_row('TBT', $B['m5m_tbt'], $A['m5m_tbt'], 'ms', true,  false, $shade);
 
 
             /* ========== PSI metrics (Desktop) ========== */
@@ -1174,7 +1182,7 @@ function wpsa_render_compare_results_panel_ui() {
             $render_row('FCP',             $B['m5d_fcp'],  $A['m5d_fcp'],  's', true,  false, $shade);
             $shade = !$shade;
             $render_row('CLS', $B['m5d_cls'], $A['m5d_cls'], '',  true,  false, $shade);
-            $render_row('INP', $B['m5d_tbt'], $A['m5d_tbt'], 'ms', true,  false, $shade);
+            $render_row('TBT', $B['m5d_tbt'], $A['m5d_tbt'], 'ms', true,  false, $shade);
 
 
             /* ========== Other info ========== */
@@ -1281,7 +1289,7 @@ function wpsa_render_compare_results_panel_ui() {
         // 1) SPEED
         echo '<div class="chart-card">';
         echo '  <div class="controls">';
-        echo '    <h3 style="margin:0">Speed over time (TTFB, LCP, FCP, CLS, INP) — less is better</h3>';
+        echo '    <h3 style="margin:0">Speed over time (TTFB, LCP, FCP, CLS, TBT) — less is better</h3>';
         echo '    <span style="flex:1"></span>';
         echo '    <label>Timeframe:&nbsp;';
         echo '      <select id="wpsaRangeTimes">';
@@ -1432,8 +1440,8 @@ function wpsa_render_compare_results_panel_ui() {
                 ds("CLS Desktop",        d.cls_d, BROWN, BROWNA, { yAxisID:"ycls", borderDash:[6,4] }),
                 
                 // INP (ms)
-                ds("INP Mobile (ms)",    d.inp_m, LIME,  LIMEA,  { yAxisID:"yms"  }),
-                ds("INP Desktop (ms)",   d.inp_d, NAVY,  NAVYA,  { yAxisID:"yms",  borderDash:[6,4] }),
+                ds("TBT Mobile (ms)",    d.inp_m, LIME,  LIMEA,  { yAxisID:"yms"  }),
+                ds("TBT Desktop (ms)",   d.inp_d, NAVY,  NAVYA,  { yAxisID:"yms",  borderDash:[6,4] }),
 
               ]
             },

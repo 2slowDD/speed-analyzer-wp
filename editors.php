@@ -413,8 +413,10 @@ function wpsa_editor_parse_last_result_for_url( $url ) {
                 $cls = (float) $m[1];
             }
 
-            // INP (ms or N/A)
-            if ( null === $inp && preg_match( '#\bINP\s*:\s*(N/A|[0-9.]+)\s*(ms)?\b#i', $bl, $m ) ) {
+            // TBT (ms or N/A). Read from the dedicated "Module 5 <Device> TBT:"
+            // line. The first match in the block is Mobile, which matches the
+            // previous INP behaviour, so this column still shows the mobile value.
+            if ( null === $inp && preg_match( '#\bTBT\s*:\s*(N/A|[0-9.]+)\s*(ms)?\b#i', $bl, $m ) ) {
                 if ( ! preg_match( '#^n/a$#i', $m[1] ) ) {
                     $inp = (int) round( (float) $m[1] );
                 }
@@ -454,7 +456,7 @@ function wpsa_editor_parse_last_result_for_url( $url ) {
             'lcp'           => $lcp, // seconds
             'fcp'           => $fcp, // seconds
             'cls'           => $cls,
-            'inp'           => $inp, // ms
+            'tbt'           => $inp, // ms
 
             'cwv_m_status'  => $cwv_m_status, // passed|failed|null
             'cwv_m_scope'   => $cwv_m_scope,  // page|origin|null
@@ -527,9 +529,10 @@ function wpsa_editor_metric_class( $metric, $value ) {
         return 'wpsa-m-bad';
     }
 
-    if ( 'inp' === $metric ) { // ms
+    if ( 'tbt' === $metric ) { // ms
+        // This column shows the MOBILE reading, so it uses the mobile TBT band.
         if ( $v <= 200 ) return 'wpsa-m-good';
-        if ( $v <= 500 ) return 'wpsa-m-warn';
+        if ( $v <= 600 ) return 'wpsa-m-warn';
         return 'wpsa-m-bad';
     }
 
@@ -683,12 +686,12 @@ function wpsa_editor_render_speed_column( $col, $post_id ) {
     $lcp_txt = wpsa_editor_fmt_sec( $r['lcp'] ?? null );
     $fcp_txt = wpsa_editor_fmt_sec( $r['fcp'] ?? null );
     $cls_txt = wpsa_editor_fmt_cls( $r['cls'] ?? null );
-    $inp_txt = wpsa_editor_fmt_inp( $r['inp'] ?? null );
+    $inp_txt = wpsa_editor_fmt_inp( $r['tbt'] ?? null );
 
     $lcp_cls = wpsa_editor_metric_class( 'lcp', $r['lcp'] ?? null );
     $fcp_cls = wpsa_editor_metric_class( 'fcp', $r['fcp'] ?? null );
     $cls_cls = wpsa_editor_metric_class( 'cls', $r['cls'] ?? null );
-    $inp_cls = wpsa_editor_metric_class( 'inp', $r['inp'] ?? null );
+    $inp_cls = wpsa_editor_metric_class( 'tbt', $r['tbt'] ?? null );
     $show_cwv_block = in_array( get_post_type( $post_id ), [ 'page', 'post' ], true );
 
     echo '<div class="wpsa-admin-cell">';
@@ -722,7 +725,7 @@ function wpsa_editor_render_speed_column( $col, $post_id ) {
           echo '<div class="' . esc_attr( $lcp_cls ) . '">LCP: ' . esc_html( $lcp_txt ) . '</div>';
           echo '<div class="' . esc_attr( $fcp_cls ) . '">FCP: ' . esc_html( $fcp_txt ) . '</div>';
           echo '<div class="' . esc_attr( $cls_cls ) . '">CLS: ' . esc_html( $cls_txt ) . '</div>';
-          echo '<div class="' . esc_attr( $inp_cls ) . '">INP: ' . esc_html( $inp_txt ) . '</div>';
+          echo '<div class="' . esc_attr( $inp_cls ) . '">TBT: ' . esc_html( $inp_txt ) . '</div>';
         echo '</div>';
         
                 $cwv_m_status = isset( $r['cwv_m_status'] ) && in_array( $r['cwv_m_status'], [ 'passed', 'failed' ], true )

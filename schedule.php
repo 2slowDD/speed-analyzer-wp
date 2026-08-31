@@ -231,8 +231,10 @@ function wpsa_schedule_attach_module5_to_test( $results_log, $tested_url, $lines
  * Server-side PSI fetch + Module 5 logging for scheduled tests.
  *
  * Writes:
- *   Module 5 Mobile: Performance: X, LCP: Y, FCP: Z, CLS: W, INP: Z
- *   Module 5 Desktop: Performance: X, LCP: Y, FCP: Z, CLS: W, INP: Z
+ *   Module 5 Mobile: Performance: X, LCP: Y, FCP: Z, CLS: W, INP: N/A
+ *   Module 5 Mobile TBT: T
+ *   Module 5 Desktop: Performance: X, LCP: Y, FCP: Z, CLS: W, INP: N/A
+ *   Module 5 Desktop TBT: T
  *
  * Also appends a compact JSONL entry per strategy to:
  *   /uploads/speed-analyzer/PSI-ss-scheduled.log
@@ -859,7 +861,7 @@ function wpsa_schedule_parse_results_log_latest_prev( $log_path, $current_test_i
 		'lcp'         => ( isset( $best_test['m5m_lcp'] )  && null !== $best_test['m5m_lcp'] )  ? (string) $best_test['m5m_lcp']  : 'N/A',
 		'fcp'         => ( isset( $best_test['m5m_fcp'] )  && null !== $best_test['m5m_fcp'] )  ? (string) $best_test['m5m_fcp']  : 'N/A',
 		'cls'         => ( isset( $best_test['m5m_cls'] )  && null !== $best_test['m5m_cls'] )  ? (string) $best_test['m5m_cls']  : 'N/A',
-		'inp'         => ( isset( $best_test['m5m_tbt'] )  && null !== $best_test['m5m_tbt'] )  ? (string) $best_test['m5m_tbt']  : 'N/A',
+		'tbt'         => ( isset( $best_test['m5m_tbt'] )  && null !== $best_test['m5m_tbt'] )  ? (string) $best_test['m5m_tbt']  : 'N/A',
 	);
 
 	// Desktop.
@@ -868,7 +870,7 @@ function wpsa_schedule_parse_results_log_latest_prev( $log_path, $current_test_i
 		'lcp'         => ( isset( $best_test['m5d_lcp'] )  && null !== $best_test['m5d_lcp'] )  ? (string) $best_test['m5d_lcp']  : 'N/A',
 		'fcp'         => ( isset( $best_test['m5d_fcp'] )  && null !== $best_test['m5d_fcp'] )  ? (string) $best_test['m5d_fcp']  : 'N/A',
 		'cls'         => ( isset( $best_test['m5d_cls'] )  && null !== $best_test['m5d_cls'] )  ? (string) $best_test['m5d_cls']  : 'N/A',
-		'inp'         => ( isset( $best_test['m5d_tbt'] )  && null !== $best_test['m5d_tbt'] )  ? (string) $best_test['m5d_tbt']  : 'N/A',
+		'tbt'         => ( isset( $best_test['m5d_tbt'] )  && null !== $best_test['m5d_tbt'] )  ? (string) $best_test['m5d_tbt']  : 'N/A',
 	);
 
 	return $data;
@@ -891,7 +893,7 @@ function wpsa_schedule_metric_to_float( $raw, $metric_key ) {
 	$f = (float) $val;
 
 	// Performance is 0-100, others as numeric.
-	// No unit conversion here because log is in seconds for LCP/FCP and raw for CLS, INP N/A.
+	// No unit conversion here because log is in seconds for LCP/FCP and raw for CLS/TBT.
 	return $f;
 }
 
@@ -1214,11 +1216,13 @@ function wpsa_schedule_send_batch_email( $batch, $settings, $results_log ) {
                 }
                 break;
 
-            case 'inp':
-                // Good <= 200ms, NI <= 500ms, poor > 500ms.
+            case 'tbt':
+                // Lighthouse mobile TBT curve: good <= 200ms, NI <= 600ms, poor > 600ms.
+                // This email helper has no device in scope, so it uses the mobile
+                // (permissive) band deliberately -- see decision D4.
                 if ( $v <= 200 ) {
                     $color = $green;
-                } elseif ( $v <= 500 ) {
+                } elseif ( $v <= 600 ) {
                     $color = $amber;
                 } else {
                     $color = $red;
@@ -1492,8 +1496,8 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
         $d_fcp_attr = 'font-size:13px;' . $metric_style( 'fcp', $d_fcp_val );
         $m_cls_attr = 'font-size:13px;' . $metric_style( 'cls', $m_cls_val );
         $d_cls_attr = 'font-size:13px;' . $metric_style( 'cls', $d_cls_val );
-        $m_inp_attr = 'font-size:13px;' . $metric_style( 'inp', $m_inp_val );
-        $d_inp_attr = 'font-size:13px;' . $metric_style( 'inp', $d_inp_val );
+        $m_inp_attr = 'font-size:13px;' . $metric_style( 'tbt', $m_inp_val );
+        $d_inp_attr = 'font-size:13px;' . $metric_style( 'tbt', $d_inp_val );
 
         // Resolve screenshots for this test (if any) and respect the 5-test cap.
 
@@ -1708,13 +1712,13 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
     $body .= '</td>';
     $body .= '</tr>';
     
-    // INP row – styled + 13px font, no bold label.
+    // TBT row – styled + 13px font, no bold label.
     $body .= '<tr>';
     $body .= '<td width="50%" style="padding:6px 8px 8px 8px;font-size:13px;">';
-    $body .= 'INP: <span style="' . esc_attr( $m_inp_attr ) . '">' . esc_html( $m_inp_val ) . '</span> ms';
+    $body .= 'TBT: <span style="' . esc_attr( $m_inp_attr ) . '">' . esc_html( $m_inp_val ) . '</span> ms';
     $body .= '</td>';
     $body .= '<td width="50%" style="padding:6px 8px 8px 8px;font-size:13px;">';
-    $body .= 'INP: <span style="' . esc_attr( $d_inp_attr ) . '">' . esc_html( $d_inp_val ) . '</span> ms';
+    $body .= 'TBT: <span style="' . esc_attr( $d_inp_attr ) . '">' . esc_html( $d_inp_val ) . '</span> ms';
     $body .= '</td>';
     $body .= '</tr>';
 
@@ -2516,10 +2520,19 @@ $wpsa_fmt_num = static function ( $n ) {
 
 
     // Normalize alert config.
+    // A setting saved before 1.19.0 holds the legacy value 'inp'. Map it to
+    // 'tbt' on read so the alert keeps firing without the user re-saving.
+    // See tasks/2026-08-31-inp-to-tbt-design.md, decision D8.
     $reg_metric  = ! empty( $settings['alert_reg_metric'] ) ? strtolower( (string) $settings['alert_reg_metric'] ) : 'all';
+    if ( 'inp' === $reg_metric ) {
+        $reg_metric = 'tbt';
+    }
     $reg_percent = ! empty( $settings['alert_reg_percent'] ) ? (float) $settings['alert_reg_percent'] : 30;
 
     $th_metric   = ! empty( $settings['alert_thresh_metric'] ) ? strtolower( (string) $settings['alert_thresh_metric'] ) : 'lcp';
+    if ( 'inp' === $th_metric ) {
+        $th_metric = 'tbt';
+    }
     $th_value    = isset( $settings['alert_thresh_value'] ) ? (float) $settings['alert_thresh_value'] : 0;
 
     // Device scopes (regression vs threshold).
@@ -2595,7 +2608,7 @@ $devices_thresh_to_check = ( ! empty( $alert_devices_thresh ) && is_array( $aler
             if ( $check_reg && ! empty( $settings['alert_reg_enable'] ) && ! empty( $prev ) ) {
 
 
-                $metrics_to_check = array( 'lcp', 'fcp', 'inp' );
+                $metrics_to_check = array( 'lcp', 'fcp', 'tbt' );
                 if ( in_array( $reg_metric, $metrics_to_check, true ) ) {
                     $metrics_to_check = array( $reg_metric );
                 }
@@ -2610,9 +2623,10 @@ $devices_thresh_to_check = ( ! empty( $alert_devices_thresh ) && is_array( $aler
                     } elseif ( 'fcp' === $mk ) {
                         $cur_raw  = $cur_fcp;
                         $prev_raw = $prev_dev['fcp'] ?? null;
-                    } elseif ( 'inp' === $mk ) {
+                    } elseif ( 'tbt' === $mk ) {
                         $cur_raw  = $cur_inp;
-                        $prev_raw = $prev_dev['inp'] ?? null;
+                        // Legacy snapshots stored this under 'inp'.
+                        $prev_raw = $prev_dev['tbt'] ?? $prev_dev['inp'] ?? null;
                     }
 
                     $cur_val  = wpsa_schedule_metric_to_float( (string) $cur_raw, $mk );
@@ -2657,7 +2671,7 @@ $devices_thresh_to_check = ( ! empty( $alert_devices_thresh ) && is_array( $aler
                     $cur_raw = $cur_fcp;
                 } elseif ( 'cls' === $th_metric ) {
                     $cur_raw = $cur_cls;
-                } elseif ( 'inp' === $th_metric ) {
+                } elseif ( 'tbt' === $th_metric ) {
                     $cur_raw = $cur_inp;
                 }
 
@@ -2675,7 +2689,7 @@ $devices_thresh_to_check = ( ! empty( $alert_devices_thresh ) && is_array( $aler
                     $th_print = '';
                     if ( 'cls' === $th_metric ) {
                         $th_print = $wpsa_fmt_num( $th_value );
-                    } elseif ( 'inp' === $th_metric ) {
+                    } elseif ( 'tbt' === $th_metric ) {
                         $th_print = $wpsa_fmt_num( $th_value ) . 'ms';
                     } else {
                         // LCP / FCP are seconds in your logs.
@@ -2812,8 +2826,14 @@ function wpsa_handle_schedule_form() {
     $reg_metric_raw = isset( $_POST['wpsa_schedule_alert_reg_metric'] )
         ? sanitize_text_field( wp_unslash( $_POST['wpsa_schedule_alert_reg_metric'] ) )
         : 'all';
-    $allowed_reg_metrics = array( 'all', 'lcp', 'fcp', 'inp' );
+    // 'inp' stays in the allowlist as a LEGACY alias so an alert configured
+    // before 1.19.0 keeps working; it is normalised to 'tbt' immediately.
+    // See tasks/2026-08-31-inp-to-tbt-design.md, decision D8.
+    $allowed_reg_metrics = array( 'all', 'lcp', 'fcp', 'tbt', 'inp' );
     $alert_reg_metric    = in_array( $reg_metric_raw, $allowed_reg_metrics, true ) ? $reg_metric_raw : 'all';
+    if ( 'inp' === $alert_reg_metric ) {
+        $alert_reg_metric = 'tbt';
+    }
 
     $reg_percent_raw = isset( $_POST['wpsa_schedule_alert_reg_percent'] )
         ? (int) $_POST['wpsa_schedule_alert_reg_percent']
@@ -2835,8 +2855,12 @@ function wpsa_handle_schedule_form() {
     $th_metric_raw = isset( $_POST['wpsa_schedule_alert_thresh_metric'] )
         ? sanitize_text_field( wp_unslash( $_POST['wpsa_schedule_alert_thresh_metric'] ) )
         : 'lcp';
-    $allowed_thresh_metrics = array( 'lcp', 'fcp', 'cls', 'inp' );
+    // 'inp' is a LEGACY alias, normalised to 'tbt'. See decision D8.
+    $allowed_thresh_metrics = array( 'lcp', 'fcp', 'cls', 'tbt', 'inp' );
     $alert_thresh_metric    = in_array( $th_metric_raw, $allowed_thresh_metrics, true ) ? $th_metric_raw : 'lcp';
+    if ( 'inp' === $alert_thresh_metric ) {
+        $alert_thresh_metric = 'tbt';
+    }
 
     // Device scope for absolute threshold alert (both/mobile/desktop).
     // Note: already parsed above as $alert_thresh_device_scope, so do not re-parse/overwrite here.
@@ -2877,7 +2901,7 @@ function wpsa_handle_schedule_form() {
                 $alert_thresh_value = 1.8;
             } elseif ( 'cls' === $alert_thresh_metric ) {
                 $alert_thresh_value = 0.10;
-            } elseif ( 'inp' === $alert_thresh_metric ) {
+            } elseif ( 'tbt' === $alert_thresh_metric ) {
                 $alert_thresh_value = 200;
             } else {
                 $alert_thresh_value = 2.5; // lcp
@@ -3105,12 +3129,12 @@ function wpsa_render_schedule_panel_ui() {
 
         // Alert options (new)
         'alert_reg_enable'        => false,
-        'alert_reg_metric'        => 'all',   // all|lcp|fcp|inp (no CLS here)
+        'alert_reg_metric'        => 'all',   // all|lcp|fcp|tbt (no CLS here); 'inp' accepted as legacy
         'alert_reg_percent'       => 30,      // integer %
         'alert_reg_device_scope'  => 'both',  // both|mobile|desktop
 
         'alert_thresh_enable'     => false,
-        'alert_thresh_metric'     => 'lcp',   // lcp|fcp|cls|inp
+        'alert_thresh_metric'     => 'lcp',   // lcp|fcp|cls|tbt; 'inp' accepted as legacy
         'alert_thresh_value'      => 2.5,     // numeric (unit depends on metric)
          'alert_thresh_device_scope'  => 'both',  // both|mobile|desktop
 
@@ -3422,7 +3446,7 @@ function wpsa_render_schedule_panel_ui() {
                                                 </option>
                                                 <option value="lcp" <?php selected( $settings['alert_reg_metric'], 'lcp' ); ?>>LCP</option>
                                                 <option value="fcp" <?php selected( $settings['alert_reg_metric'], 'fcp' ); ?>>FCP</option>
-                                                <option value="inp" <?php selected( $settings['alert_reg_metric'], 'inp' ); ?>>INP</option>
+                                                <option value="tbt" <?php selected( $settings['alert_reg_metric'], 'tbt' ); ?>>TBT</option>
                                             </select>
                                         </div>
 
@@ -3487,7 +3511,7 @@ function wpsa_render_schedule_panel_ui() {
                                                 <option value="lcp" <?php selected( $settings['alert_thresh_metric'], 'lcp' ); ?>>LCP</option>
                                                 <option value="fcp" <?php selected( $settings['alert_thresh_metric'], 'fcp' ); ?>>FCP</option>
                                                 <option value="cls" <?php selected( $settings['alert_thresh_metric'], 'cls' ); ?>>CLS</option>
-                                                <option value="inp" <?php selected( $settings['alert_thresh_metric'], 'inp' ); ?>>INP</option>
+                                                <option value="tbt" <?php selected( $settings['alert_thresh_metric'], 'tbt' ); ?>>TBT</option>
                                             </select>
                                         </div>
                                         
@@ -3529,7 +3553,7 @@ function wpsa_render_schedule_panel_ui() {
                                         </div>
 
                                         <p class="description" style="margin-top:6px;">
-                                            <?php esc_html_e( 'Defaults match PSI “green” thresholds (LCP 2.5s, FCP 1.8s, CLS 0.10, INP 200ms).', 'speed-analyzer' ); ?>
+                                            <?php esc_html_e( 'Defaults match PSI “green” thresholds (LCP 2.5s, FCP 1.8s, CLS 0.10, TBT 200ms mobile / 150ms desktop).', 'speed-analyzer' ); ?>
                                         </p>
                                     </div>
                                 </div>
@@ -3802,7 +3826,7 @@ function wpsa_render_schedule_panel_ui() {
     
         if (!suffixEl || !valueInput) return;
     
-        if (metric === 'inp') {
+        if (metric === 'tbt') {
           suffixEl.textContent = 'ms';
           valueInput.step = '1';
         } else if (metric === 'cls') {
