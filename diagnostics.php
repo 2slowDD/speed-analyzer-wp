@@ -316,36 +316,33 @@ function wpsa_ajax_performance() {
     $fcp   = $l['audits']['first-contentful-paint']['displayValue']   ?? '--';
     $cls   = $l['audits']['cumulative-layout-shift']['displayValue']  ?? '--';
 
-    // --- INP: try lab first (3 possible locations), then fall back to CrUX field p75 ---
-    $inp = '--';
+    // --- TBT: LAB-ONLY. ------------------------------------------------------
+    // Google PSI surfaces Total Blocking Time where it used to show INP. TBT is a
+    // Lighthouse lab audit and has NO CrUX field counterpart - the CrUX field set
+    // is LCP, INP, CLS, FCP, TTFB and RTT only. So unlike the INP code this
+    // replaced, there is deliberately NO field fallback here. Do not add one.
+    //
+    // Read numericValue, NEVER displayValue: PSI rounds displayValue to the
+    // nearest ten (19 -> "20 ms") and inserts a thousands separator once TBT
+    // crosses 1000 ms (1908.99 -> "1,910 ms"). The LCP/FCP/CLS lines above DO use
+    // displayValue; that pattern is wrong for this metric.
+    //
+    // The field CWV assessment in helpers.php still uses INP on purpose - that is
+    // real-user data, and the Core Web Vitals verdict is defined as LCP+INP+CLS.
+    // See tasks/2026-08-31-inp-to-tbt-design.md, decision D5.
+    $tbt     = '--';
+    $tbt_lab = null;
 
-    // 1) Lab numeric (preferred)
-    $inp_lab = null;
-    if (isset($l['audits']['experimental-interaction-to-next-paint']['numericValue']) &&
-        is_numeric($l['audits']['experimental-interaction-to-next-paint']['numericValue'])) {
-        $inp_lab = (float) $l['audits']['experimental-interaction-to-next-paint']['numericValue'];
-    } elseif (isset($l['audits']['interaction-to-next-paint']['numericValue']) &&
-              is_numeric($l['audits']['interaction-to-next-paint']['numericValue'])) {
-        $inp_lab = (float) $l['audits']['interaction-to-next-paint']['numericValue'];
-    } elseif (!empty($l['audits']['metrics']['details']['items'][0]['observedInteractionToNextPaint']) &&
-              is_numeric($l['audits']['metrics']['details']['items'][0]['observedInteractionToNextPaint'])) {
-        $inp_lab = (float) $l['audits']['metrics']['details']['items'][0]['observedInteractionToNextPaint'];
+    if ( isset( $l['audits']['total-blocking-time']['numericValue'] )
+        && is_numeric( $l['audits']['total-blocking-time']['numericValue'] ) ) {
+        $tbt_lab = (float) $l['audits']['total-blocking-time']['numericValue'];
+    } elseif ( isset( $metrics['totalBlockingTime'] )
+        && is_numeric( $metrics['totalBlockingTime'] ) ) {
+        $tbt_lab = (float) $metrics['totalBlockingTime'];
     }
 
-    if (is_numeric($inp_lab)) {
-        // lab numeric is in ms
-        $inp = round($inp_lab) . ' ms';
-    } else {
-        // 2) Field data fallback (CrUX p75) – try page, then origin
-        $crux = $data['loadingExperience']['metrics']['INP']
-             ?? $data['loadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']
-             ?? $data['originLoadingExperience']['metrics']['INP']
-             ?? $data['originLoadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']
-             ?? null;
-
-        if (is_array($crux) && isset($crux['percentile']) && is_numeric($crux['percentile'])) {
-            $inp = intval($crux['percentile']) . ' ms'; // also ms
-        }
+    if ( is_numeric( $tbt_lab ) ) {
+        $tbt = round( $tbt_lab ) . ' ms';
     }
 
 
@@ -431,7 +428,8 @@ function wpsa_ajax_performance() {
     $diagnostics = array_slice( $diagnostics, 0, 5 );
     $insights    = array_slice( $insights,    0, 5 );
 
-    $inp_source = is_numeric( $inp_lab ) ? 'lab' : ( strpos( $inp, 'ms' ) !== false ? 'field' : 'na' );
+    // No $tbt_source: TBT is lab-only, so a lab/field provenance badge would be
+    // noise. The field CWV block renders its own scope label separately.
 
     // Optional PSI screenshot from the Worker (data URL)
     // Prefer new screenshot_data_url, fall back to legacy psi_screenshot
@@ -456,8 +454,7 @@ function wpsa_ajax_performance() {
         'lcp'            => $lcp,
         'fcp'            => $fcp,
         'cls'            => $cls,
-        'inp'            => $inp,
-        'inp_source'     => $inp_source,
+        'tbt'            => $tbt,
         'diagnostics'    => $diagnostics,
         'insights'       => $insights,
         'psi_screenshot' => $psi_screenshot,

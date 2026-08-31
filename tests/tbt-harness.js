@@ -133,4 +133,62 @@ assert(
   'and changing it would alter LCP/FCP/CLS parsing.'
 );
 
+// ---------------------------------------------------------------------------
+// AC-7 / AC-8 — acquisition is lab-only.
+//
+// CrUX exposes no total_blocking_time. Its complete field-metric set is
+// largest_contentful_paint, interaction_to_next_paint, cumulative_layout_shift,
+// first_contentful_paint, experimental_time_to_first_byte and round_trip_time.
+// So the field fallback that existed for INP has no counterpart here and must be
+// DELETED, not repointed to some imagined field TBT.
+// ---------------------------------------------------------------------------
+const diagSrc = loadSrc('diagnostics.php');
+
+const tbtBlockStart = diagSrc.indexOf('$tbt_lab');
+assert(tbtBlockStart !== -1, 'diagnostics.php must acquire TBT into $tbt_lab.');
+const tbtBlockEnd = diagSrc.indexOf('Build Opportunities', tbtBlockStart);
+assert(tbtBlockEnd > tbtBlockStart, 'Could not bound the TBT acquisition block.');
+const tbtBlock = diagSrc.slice(tbtBlockStart, tbtBlockEnd);
+
+assert(
+  tbtBlock.indexOf("'total-blocking-time'") !== -1,
+  'TBT must be read from the total-blocking-time Lighthouse audit.'
+);
+assert(
+  tbtBlock.indexOf("'numericValue'") !== -1,
+  'TBT must be read from numericValue.'
+);
+assert(
+  tbtBlock.indexOf('displayValue') === -1,
+  'TBT must NOT use displayValue: PSI rounds it to the nearest ten (19 -> "20 ms") ' +
+  'and inserts a thousands separator above 1000 ms (1908.99 -> "1,910 ms"). The ' +
+  'adjacent LCP/FCP lines DO use displayValue, which is exactly why this guard exists.'
+);
+assert(
+  tbtBlock.indexOf('totalBlockingTime') !== -1,
+  'Keep metrics.details.items[0].totalBlockingTime as the secondary source.'
+);
+assert(
+  tbtBlock.indexOf('loadingExperience') === -1 &&
+  tbtBlock.indexOf('INTERACTION_TO_NEXT_PAINT') === -1,
+  'The TBT acquisition path must contain NO field-data fallback. TBT has no CrUX ' +
+  'counterpart, so a field branch here would silently report a different metric.'
+);
+
+assert(/'tbt'\s*=>/.test(diagSrc), "The AJAX payload must send 'tbt'.");
+assert(
+  diagSrc.indexOf("'inp_source'") === -1,
+  "'inp_source' must be removed: it distinguished lab-vs-field provenance, which is " +
+  'meaningless for a lab-only metric.'
+);
+assert(
+  adminSrc.indexOf('data.inp_source') === -1,
+  'The lab/field source badge must be removed from the tile renderer along with the ' +
+  'payload field that fed it.'
+);
+assert(
+  adminSrc.indexOf('data.tbt') !== -1,
+  'The tile renderer must read the tbt payload key.'
+);
+
 console.log('OK tbt-harness');

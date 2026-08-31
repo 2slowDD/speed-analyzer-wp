@@ -865,18 +865,13 @@ if (effectiveUrl) {
 
         
             if ($inpCard.length) {
-      var inpTxt = (data.inp || '').toString().trim();
+      var inpTxt = (data.tbt || '').toString().trim();
       var inpNA  = !inpTxt || /^n\/a$/i.test(inpTxt);
       $inpCard.removeClass('is-na').find('.icon').remove();
 
-      // 🔖 show source badge in the header (lab/field)
+      // No lab/field source badge: TBT is lab-only, so the distinction the old
+      // INP badge drew no longer exists. The field CWV block shows its own scope.
       $inpCard.find('.header .inp-badge').remove();
-      var src = (data.inp_source || '').toLowerCase();
-      if (src === 'field') {
-        $inpCard.find('.header').append(' <span class="inp-badge" title="CrUX field (real-user) data">CrUX field data</span>');
-      } else if (src === 'lab') {
-        $inpCard.find('.header').append(' <span class="inp-badge" title="Lighthouse lab measurement">lab</span>');
-      }
 
       if (inpNA) {
         $inpCard.addClass('is-na').css('background', WPSA_COLORS.na)
