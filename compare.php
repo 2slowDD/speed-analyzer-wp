@@ -164,7 +164,7 @@ function wpsa_render_compare_results_panel_ui() {
 // Chart.js for trends - bundled locally (WP.org forbids offloading scripts to a CDN).
     wp_enqueue_script(
         'wpsa-chartjs',
-        plugin_dir_url( __FILE__ ) . 'assets/js/chart.umd.min.js',
+        WPSA_PLUGIN_URL . 'assets/js/chart.umd.min.js',
         array(),
         '4.4.1',
         true
@@ -368,7 +368,7 @@ function wpsa_render_compare_results_panel_ui() {
     
     echo '<h1 class="wpsa-header">'
     . '<img class="wpsa-logo"'
-    . '     src="' . esc_url( plugin_dir_url( __FILE__ ) . 'SAWP-logo.svg' ) . '"'
+    . '     src="' . esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ) . '"'
     . '     alt="Speed Analyzer Logo">'
     . '<div class="wpsa-header-info">'
     . '  <span class="wpsa-name">Speed Analyzer</span>'

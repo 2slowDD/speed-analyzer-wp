@@ -18,6 +18,28 @@ if ( ! defined( 'WPSA_PLUGIN_FILE' ) ) {
     define( 'WPSA_PLUGIN_FILE', __FILE__ );
 }
 
+/*
+ * Plugin-root URL and directory, anchored to the MAIN FILE rather than to whichever
+ * file happens to be asking.
+ *
+ * The `__FILE__` forms of WordPress's plugin_dir_url()/plugin_dir_path() resolve
+ * relative to the CALLING file. While every source file sits at the plugin root the
+ * two forms are interchangeable, so this change is byte-identical today. They stop
+ * being interchangeable the moment a file moves into a subdirectory: a caller in
+ * includes/ would resolve to <plugin>/includes/, and every asset URL built from it
+ * would 404 - which is exactly how the bundled Chart.js and the trends chart break.
+ *
+ * Anchoring to WPSA_PLUGIN_FILE keeps both values pointing at the plugin root no
+ * matter where the caller lives. Must be defined before the require block below,
+ * which uses WPSA_PLUGIN_DIR.
+ */
+if ( ! defined( 'WPSA_PLUGIN_DIR' ) ) {
+    define( 'WPSA_PLUGIN_DIR', plugin_dir_path( WPSA_PLUGIN_FILE ) );
+}
+if ( ! defined( 'WPSA_PLUGIN_URL' ) ) {
+    define( 'WPSA_PLUGIN_URL', plugin_dir_url( WPSA_PLUGIN_FILE ) );
+}
+
 define( 'SAWP_VERSION', '1.19.0' );
 if ( ! defined( 'WPSA_VERSION' ) ) {
     define( 'WPSA_VERSION', SAWP_VERSION );
@@ -30,16 +52,16 @@ if ( ! defined( 'WPSA_GATEKEEPER_URL' ) ) {
 }
 
 // Load core modules
-require_once plugin_dir_path( __FILE__ ) . 'helpers.php';
-require_once plugin_dir_path( __FILE__ ) . 'modules.php';
-require_once plugin_dir_path( __FILE__ ) . 'diagnostics.php';
-require_once plugin_dir_path( __FILE__ ) . 'summary.php';
-require_once plugin_dir_path( __FILE__ ) . 'conclusion.php';
-require_once plugin_dir_path( __FILE__ ) . 'report.php';
-require_once plugin_dir_path( __FILE__ ) . 'lpanel.php';
-require_once plugin_dir_path( __FILE__ ) . 'schedule.php';
-require_once plugin_dir_path( __FILE__ ) . 'compare.php';
-require_once plugin_dir_path( __FILE__ ) . 'editors.php';
+require_once WPSA_PLUGIN_DIR . 'helpers.php';
+require_once WPSA_PLUGIN_DIR . 'modules.php';
+require_once WPSA_PLUGIN_DIR . 'diagnostics.php';
+require_once WPSA_PLUGIN_DIR . 'summary.php';
+require_once WPSA_PLUGIN_DIR . 'conclusion.php';
+require_once WPSA_PLUGIN_DIR . 'report.php';
+require_once WPSA_PLUGIN_DIR . 'lpanel.php';
+require_once WPSA_PLUGIN_DIR . 'schedule.php';
+require_once WPSA_PLUGIN_DIR . 'compare.php';
+require_once WPSA_PLUGIN_DIR . 'editors.php';
 
 /**
  * --- AJAX endpoint to render PDF markup on demand ---
@@ -193,19 +215,19 @@ function wpsa_ajax_pdf_quota() {
         }
     
        // Core CSS & JS
-        $css = plugin_dir_path( __FILE__ ) . 'admin-styles.css';
-        $js  = plugin_dir_path( __FILE__ ) . 'admin-scripts.js';
+        $css = WPSA_PLUGIN_DIR . 'admin-styles.css';
+        $js  = WPSA_PLUGIN_DIR . 'admin-scripts.js';
         
         wp_enqueue_style(
             'wpsa-admin-styles',
-            plugin_dir_url( __FILE__ ) . 'admin-styles.css',
+            WPSA_PLUGIN_URL . 'admin-styles.css',
             [],
             file_exists( $css ) ? filemtime( $css ) : SAWP_VERSION
         );
         
         wp_enqueue_script(
             'wpsa-admin-scripts',
-            plugin_dir_url( __FILE__ ) . 'admin-scripts.js',
+            WPSA_PLUGIN_URL . 'admin-scripts.js',
             [ 'jquery' ],
             file_exists( $js ) ? filemtime( $js ) : SAWP_VERSION,
             true
@@ -216,30 +238,30 @@ function wpsa_ajax_pdf_quota() {
         wp_enqueue_script( 'jquery-ui-dialog' );
 
         // Widgets / small UI helpers
-        $widgets_js = plugin_dir_path( __FILE__ ) . 'admin-widgets.js';
+        $widgets_js = WPSA_PLUGIN_DIR . 'admin-widgets.js';
         wp_enqueue_script(
             'wpsa-admin-widgets',
-            plugin_dir_url( __FILE__ ) . 'admin-widgets.js',
+            WPSA_PLUGIN_URL . 'admin-widgets.js',
             [ 'jquery', 'jquery-ui-dialog' ],
             file_exists( $widgets_js ) ? filemtime( $widgets_js ) : SAWP_VERSION,
             true
         );
         
         // CWV small UI helper (Module 5)
-        $cwv_ui_js = plugin_dir_path( __FILE__ ) . 'cwv-ui.js';
+        $cwv_ui_js = WPSA_PLUGIN_DIR . 'cwv-ui.js';
         wp_enqueue_script(
             'wpsa-cwv-ui',
-            plugin_dir_url( __FILE__ ) . 'cwv-ui.js',
+            WPSA_PLUGIN_URL . 'cwv-ui.js',
             [ 'jquery' ],
             file_exists( $cwv_ui_js ) ? filemtime( $cwv_ui_js ) : SAWP_VERSION,
             true
         );
         
           // Schedule tab scripts (dynamic URL rows, polling UI helpers)
-        $schedule_js = plugin_dir_path( __FILE__ ) . 'schedule-scripts.js';
+        $schedule_js = WPSA_PLUGIN_DIR . 'schedule-scripts.js';
         wp_enqueue_script(
             'wpsa-schedule-scripts',
-            plugin_dir_url( __FILE__ ) . 'schedule-scripts.js',
+            WPSA_PLUGIN_URL . 'schedule-scripts.js',
             [ 'jquery' ],
             file_exists( $schedule_js ) ? filemtime( $schedule_js ) : SAWP_VERSION,
             true
@@ -301,7 +323,7 @@ function wpsa_ajax_pdf_quota() {
     // html2pdf + report scripts (only on this page)
     wp_enqueue_script(
     'wpsa-html2pdf',
-    plugin_dir_url( __FILE__ ) . 'assets/js/html2pdf.bundle.min.js',
+    WPSA_PLUGIN_URL . 'assets/js/html2pdf.bundle.min.js',
     [],
     '0.10.3',
     true
@@ -309,7 +331,7 @@ function wpsa_ajax_pdf_quota() {
 
     wp_enqueue_script(
         'wpsa-report-scripts',
-        plugin_dir_url( __FILE__ ) . 'report-scripts.js',
+        WPSA_PLUGIN_URL . 'report-scripts.js',
         [ 'jquery', 'wpsa-html2pdf' ],
         SAWP_VERSION,
         true
@@ -318,7 +340,7 @@ function wpsa_ajax_pdf_quota() {
     // PDF-only CSS moved out of inline <style id="wpsa-pdf-only"> to external file
     wp_enqueue_style(
         'wpsa-report-styles',
-        plugin_dir_url( __FILE__ ) . 'report-styles.css',
+        WPSA_PLUGIN_URL . 'report-styles.css',
         [],
         SAWP_VERSION
     );
@@ -680,7 +702,7 @@ function wpsa_render_customize_pdf_panel() {
       <!-- Brand PDF header -->
       <h1 class="header-brand">
         <img class="wpsa-logo"
-             src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'SAWP-logo.svg' ); ?>"
+             src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
              alt="Speed Analyzer Logo">
         <div class="wpsa-header-info">
           <span class="wpsa-name">Speed Analyzer</span>
@@ -908,7 +930,7 @@ function wpsa_render_tool_page() {
           <div class="wrap">
             <h1 class="wpsa-header">
               <img class="wpsa-logo"
-                   src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'SAWP-logo.svg' ); ?>"
+                   src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
                    alt="Speed Analyzer Logo">
               <div class="wpsa-header-info">
                 <span class="wpsa-name">Speed Analyzer</span>
@@ -1081,7 +1103,7 @@ function wpsa_render_tool_page() {
           <div class="wrap" style="margin:0 auto;">
             <h1 class="wpsa-header">
               <img class="wpsa-logo"
-                   src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'SAWP-logo.svg' ); ?>"
+                   src="<?php echo esc_url( WPSA_PLUGIN_URL . 'SAWP-logo.svg' ); ?>"
                    alt="<?php esc_attr_e( 'Speed Analyzer Logo', 'speed-analyzer' ); ?>">
               <div class="wpsa-header-info">
                 <span class="wpsa-name"><?php esc_html_e( 'License', 'speed-analyzer' ); ?></span>
@@ -1158,7 +1180,7 @@ function wpsa_render_tool_page() {
              target="_blank"
              rel="noopener noreferrer"
              class="wpsa-product-link">
-            <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'assets/img/code-unloader-100x100.png' ); ?>"
+            <img src="<?php echo esc_url( WPSA_PLUGIN_URL . 'assets/img/code-unloader-100x100.png' ); ?>"
                  alt="<?php esc_attr_e( 'Code Unloader', 'speed-analyzer' ); ?>"
                  class="wpsa-product-icon">
           </a>
@@ -1177,7 +1199,7 @@ function wpsa_render_tool_page() {
              target="_blank"
              rel="noopener noreferrer"
              class="wpsa-product-link">
-            <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . 'assets/img/ai-assets-scanner-100x100.png' ); ?>"
+            <img src="<?php echo esc_url( WPSA_PLUGIN_URL . 'assets/img/ai-assets-scanner-100x100.png' ); ?>"
                  alt="<?php esc_attr_e( 'AI Assets Scanner', 'speed-analyzer' ); ?>"
                  class="wpsa-product-icon">
           </a>
