@@ -139,7 +139,12 @@ function wpsa_module6_summary( $tested_url, $results_log ) {
             lcp_bad:          4.0,
             fcp_bad:          3.0,
             cls_bad:          0.25,
-            inp_bad:          500,
+            // TBT "poor" edge. This recs builder reads the rendered summary tile
+            // and has no device in scope, so it uses the MOBILE threshold (600).
+            // That is the permissive one of the pair, chosen deliberately: on a
+            // desktop reading it under-warns rather than raising a recommendation
+            // the PSI report would not support.
+            tbt_bad:          600,
             onjs_bad:         10,
             oncss_bad:        10
           };
@@ -172,7 +177,7 @@ function wpsa_module6_summary( $tested_url, $results_log ) {
             if (!isNaN(lcp) && lcp > T.lcp_bad) recs.push('Decrease LCP');
             if (!isNaN(fcp) && fcp > T.fcp_bad) recs.push('Decrease FCP');
             if (!isNaN(cls) && cls > T.cls_bad) recs.push('Reduce layout shifts (CLS)');
-            if (!isNaN(inp) && inp > T.inp_bad) recs.push('Improve interaction latency (INP)');
+            if (!isNaN(inp) && inp > T.tbt_bad) recs.push('Reduce main-thread blocking (TBT)');
         
             // Onloads
             const onCss = toNum(text('#summary-onload-css .value'));

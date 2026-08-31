@@ -392,21 +392,40 @@ defined( 'ABSPATH' ) || exit;
                     'advice'      => 'Set width/height or aspect-ratio for media, pre-allocate space for ads/embeds, and avoid late-loading fonts/styles that reflow text.'
                 ],
             ],
-            'inp' => [
+            // TBT is graded on Lighthouse's per-form-factor curve, so there are two
+            // tables. Mobile: p10 200 / median 600. Desktop: p10 150 / median 350.
+            'tbt_mobile' => [
                 'good' => [
                     'max'         => 200,
-                    'explanation' => 'INP ≤ 200 ms — interactions feel instant.',
+                    'explanation' => 'TBT ≤ 200 ms — the main thread stays responsive while the page loads.',
                     'advice'      => 'No action needed.'
                 ],
                 'medium' => [
-                    'max'         => 500,
-                    'explanation' => 'INP is moderate (200 ms < INP ≤ 500 ms) — some interactions may feel sluggish.',
-                    'advice'      => 'Reduce main-thread work, split long JS tasks, and defer non-critical scripts.'
+                    'max'         => 600,
+                    'explanation' => 'TBT is moderate (200 ms < TBT ≤ 600 ms) — long tasks are blocking the main thread during load.',
+                    'advice'      => 'Break up long JavaScript tasks, defer non-critical scripts, and reduce third-party code.'
                 ],
                 'bad' => [
                     'max'         => null,
-                    'explanation' => 'INP > 500 ms — interactions feel slow.',
-                    'advice'      => 'Eliminate heavy JS on interaction, use requestIdleCallback, code-split, and minimize third-party widgets.'
+                    'explanation' => 'TBT > 600 ms — the main thread is blocked for long stretches, so the page feels unresponsive while loading.',
+                    'advice'      => 'Split large bundles, remove unused JavaScript, move heavy work off the main thread, and cut third-party widgets.'
+                ],
+            ],
+            'tbt_desktop' => [
+                'good' => [
+                    'max'         => 150,
+                    'explanation' => 'TBT ≤ 150 ms — the main thread stays responsive while the page loads.',
+                    'advice'      => 'No action needed.'
+                ],
+                'medium' => [
+                    'max'         => 350,
+                    'explanation' => 'TBT is moderate (150 ms < TBT ≤ 350 ms) — long tasks are blocking the main thread during load.',
+                    'advice'      => 'Break up long JavaScript tasks, defer non-critical scripts, and reduce third-party code.'
+                ],
+                'bad' => [
+                    'max'         => null,
+                    'explanation' => 'TBT > 350 ms — the main thread is blocked for long stretches, so the page feels unresponsive while loading.',
+                    'advice'      => 'Split large bundles, remove unused JavaScript, move heavy work off the main thread, and cut third-party widgets.'
                 ],
             ],
 
@@ -662,8 +681,8 @@ defined( 'ABSPATH' ) || exit;
         // CLS/INP-driven recs
         if ( !is_null($cls_m) && $cls_m > 0.25 ) { $recs[] = 'Reduce mobile layout shifts (CLS).'; }
         if ( !is_null($cls_d) && $cls_d > 0.25 ) { $recs[] = 'Reduce desktop layout shifts (CLS).'; }
-        if ( !is_null($tbt_m) && $tbt_m > 500 )  { $recs[] = 'Improve mobile interaction latency (INP).'; }
-        if ( !is_null($tbt_d) && $tbt_d > 500 )  { $recs[] = 'Improve desktop interaction latency (INP).'; }
+        if ( !is_null($tbt_m) && $tbt_m > 600 )  { $recs[] = 'Reduce mobile main-thread blocking (TBT).'; }
+        if ( !is_null($tbt_d) && $tbt_d > 350 )  { $recs[] = 'Reduce desktop main-thread blocking (TBT).'; }
 
     
         // NEW: Onload assets (recommend when above green thresholds)
@@ -786,15 +805,21 @@ defined( 'ABSPATH' ) || exit;
     /**
      * Helper: print one metric card.
      * $device = 'Mobile' | 'Desktop'
-     * $metric = 'lcp' | 'fcp' | 'cls' | 'inp'
+     * $metric = 'lcp' | 'fcp' | 'cls' | 'tbt'
      * $val    = float|int|null
+     *
+     * TBT is graded per form factor, so 'tbt' is resolved against the
+     * device-suffixed table. $device is already a parameter, so no signature
+     * change was needed.
      */
     $print_m77_card = function( string $device, string $metric, $val ) use ( $wpsa_conclusion_map, $classify ) {
+        $map_key = ( 'tbt' === $metric ) ? 'tbt_' . strtolower( $device ) : $metric;
+
         // Display value + unit
         if ( is_null($val) ) {
             $disp = 'N/A';
         } else {
-            if ( $metric === 'inp' ) {
+            if ( $metric === 'tbt' ) {
                 // ms
                 $disp = esc_html( $val ) . ' ms';
             } elseif ( $metric === 'cls' ) {
@@ -807,7 +832,7 @@ defined( 'ABSPATH' ) || exit;
         }
     
         // Severity class
-        $sev = is_null($val) ? 'neutral' : $classify( $val, $wpsa_conclusion_map['module_5'][ $metric ] );
+        $sev = is_null($val) ? 'neutral' : $classify( $val, $wpsa_conclusion_map['module_5'][ $map_key ] );
     
         // Heading label (LCP/FCP/CLS/INP uppercase)
         $label = strtoupper($metric);
@@ -829,14 +854,14 @@ defined( 'ABSPATH' ) || exit;
       $print_m77_card('Mobile', 'lcp', $lcp_m);
       $print_m77_card('Mobile', 'fcp', $fcp_m);
       $print_m77_card('Mobile', 'cls', $cls_m);
-      $print_m77_card('Mobile', 'inp', $tbt_m);
+      $print_m77_card('Mobile', 'tbt', $tbt_m);
     
       // ── Desktop ──────────────────────────────────────────────
       echo '<h4>Desktop:</h4>';
       $print_m77_card('Desktop', 'lcp', $lcp_d);
       $print_m77_card('Desktop', 'fcp', $fcp_d);
       $print_m77_card('Desktop', 'cls', $cls_d);
-      $print_m77_card('Desktop', 'inp', $tbt_d);
+      $print_m77_card('Desktop', 'tbt', $tbt_d);
     
     echo '</div>'; //end of 7.7.
 

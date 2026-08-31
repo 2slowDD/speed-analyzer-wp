@@ -44,7 +44,11 @@ function wpsa_compare_get_thresholds() {
         'lcp'  => [ 'good' => 2.5, 'warn' => 4.0 ],     // sec
         'fcp'  => [ 'good' => 1.8, 'warn' => 3.0 ],     // sec
         'cls'  => [ 'good' => 0.10, 'warn' => 0.25 ], // unitless (CWV)
-        'inp'  => [ 'good' => 200,  'warn' => 500 ],  // ms (CWV)
+        // TBT is scored on a per-form-factor curve, unlike every other metric
+        // here. Lighthouse's own defaultOptions: mobile { p10: 200, median: 600 },
+        // desktop { p10: 150, median: 350 }. Do NOT collapse these to one pair.
+        'tbt_mobile'  => [ 'good' => 200, 'warn' => 600 ], // ms (lab, mobile curve)
+        'tbt_desktop' => [ 'good' => 150, 'warn' => 350 ], // ms (lab, desktop curve)
 
         // Module 2
         'req'  => [ 'good' => 50,  'warn' => 70  ],     // requests
@@ -658,10 +662,11 @@ function wpsa_render_compare_results_panel_ui() {
                 $cls = ($val <= $t['cls']['good']) ? 'cr-ok' : ( ($val <= $t['cls']['warn']) ? 'cr-warn' : 'cr-bad' );
             }
         
-        } elseif ( $type === 'inp' ) {
+        } elseif ( $type === 'tbt_mobile' || $type === 'tbt_desktop' ) {
+            // $type carries the device, so no signature change is needed here.
             if (!is_numeric($val)) { $cls='cr-na'; }
             else {
-                $cls = ($val <= $t['inp']['good']) ? 'cr-ok' : ( ($val <= $t['inp']['warn']) ? 'cr-warn' : 'cr-bad' );
+                $cls = ($val <= $t[$type]['good']) ? 'cr-ok' : ( ($val <= $t[$type]['warn']) ? 'cr-warn' : 'cr-bad' );
             }
        
 
@@ -814,8 +819,8 @@ function wpsa_render_compare_results_panel_ui() {
         . '</div>';
 
         $inp_md = '<div class="md-wrap">'
-        . '<div class="md-row"><span class="md-tag">M</span>'.$chip($r['m5m_tbt'],'inp').'</div>'
-        . '<div class="md-row"><span class="md-tag">D</span>'.$chip($r['m5d_tbt'],'inp').'</div>'
+        . '<div class="md-row"><span class="md-tag">M</span>'.$chip($r['m5m_tbt'],'tbt_mobile').'</div>'
+        . '<div class="md-row"><span class="md-tag">D</span>'.$chip($r['m5d_tbt'],'tbt_desktop').'</div>'
         . '</div>';
 
 

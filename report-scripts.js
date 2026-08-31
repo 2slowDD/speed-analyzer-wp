@@ -1264,7 +1264,7 @@ jQuery(function($){
             (function(){
               // read raw values from the metric cards
               const clsRawM = $metM.find('.wpsa-card-cls .value').text().trim();
-              const inpRawM = $metM.find('.wpsa-card-inp .value').text().trim();
+              const tbtRawM = $metM.find('.wpsa-card-inp .value').text().trim();
             
               // helpers: parse CLS and INP
               function parseCls(raw){
@@ -1272,7 +1272,7 @@ jQuery(function($){
                 const n = parseFloat(String(raw).replace(',', '.'));
                 return Number.isNaN(n) ? null : n;
               }
-              function parseInpMs(raw){
+              function parseTbtMs(raw){
                 if (!raw || /^N\/A$/i.test(raw)) return null;
                 const m = String(raw).match(/([\d.,]+)\s*(ms|s)?/i);
                 if (!m) return null;
@@ -1293,18 +1293,22 @@ jQuery(function($){
                 if (v <= 0.25) return 1;
                 return 2;
               }
-              function inpLevel(ms){              // 0=good, 1=needs-improvement, 2=poor
+              // MOBILE block. Lighthouse scores TBT on a per-form-factor curve:
+              // mobile { p10: 200, median: 600 }. p10 is the score-0.9 point
+              // (green edge), median the score-0.5 point (amber edge). The desktop
+              // copy of this function further down uses 150/350 — do NOT unify them.
+              function tbtLevel(ms){              // 0=good, 1=needs-improvement, 2=poor
                 if (ms == null) return -1;
                 if (ms <= 200) return 0;
-                if (ms <= 500) return 1;
+                if (ms <= 600) return 1;
                 return 2;
               }
-            
+
               const clsValM = parseCls(clsRawM);
-              const inpMsM  = parseInpMs(inpRawM);
+              const tbtMsM  = parseTbtMs(tbtRawM);
             
               const clsLvM  = clsLevel(clsValM);
-              const inpLvM  = inpLevel(inpMsM);
+              const tbtLvM  = tbtLevel(tbtMsM);
             
               // messages (mirror LCP/FCP tone; add ✅ + “— no action needed.” for green)
               const clsMsgsM = [
@@ -1312,10 +1316,10 @@ jQuery(function($){
                 `Your CLS is ${clsRawM} — reduce layout shift: set width/height for images & iframes, reserve space for ads/embeds, avoid late font swaps.`,
                 `Your CLS is ${clsRawM} — large layout shifts. Reserve space for media/ads, pre-size containers, avoid inserting content above existing content.`
               ];
-              const inpMsgsM = [
-                `Your INP is ${inpMsM} ms — no action needed.`,
-                `Your INP is ${inpMsM} ms — reduce main-thread work and long tasks; optimize input handlers and third-party scripts.`,
-                `Your INP is ${inpMsM} ms — poor input responsiveness. Break up long tasks, defer non-critical JS, and optimize event listeners.`
+              const tbtMsgsM = [
+                `Your INP is ${tbtMsM} ms — no action needed.`,
+                `Your INP is ${tbtMsM} ms — reduce main-thread work and long tasks; optimize input handlers and third-party scripts.`,
+                `Your INP is ${tbtMsM} ms — poor input responsiveness. Break up long tasks, defer non-critical JS, and optimize event listeners.`
               ];
             
               // CLS line (falls back to neutral if metric is N/A)
@@ -1326,10 +1330,10 @@ jQuery(function($){
               }
             
               // INP line (falls back to neutral if metric is N/A)
-              if (inpLvM === -1){
+              if (tbtLvM === -1){
                 $page3.append(`<p style="font-size:1em;color:#666;margin-bottom:20px;"><strong>Your INP is N/A — metric not available for this run.</strong></p>`);
               } else {
-                $page3.append(`<p style="font-size:1em;color:${statusCols[inpLvM]};"><strong>${inpMsgsM[inpLvM]}</strong></p>`);
+                $page3.append(`<p style="font-size:1em;color:${statusCols[tbtLvM]};"><strong>${tbtMsgsM[tbtLvM]}</strong></p>`);
               }
             })();
 
@@ -1547,14 +1551,14 @@ jQuery(function($){
             // 1.16.5: show CLS and INP immediately after FCP (all combinations handled)
             (function(){
               const clsRawD = $metD.find('.wpsa-card-cls .value').text().trim();
-              const inpRawD = $metD.find('.wpsa-card-inp .value').text().trim();
+              const tbtRawD = $metD.find('.wpsa-card-inp .value').text().trim();
             
               function parseCls(raw){
                 if (!raw || /^N\/A$/i.test(raw)) return null;
                 const n = parseFloat(String(raw).replace(',', '.'));
                 return Number.isNaN(n) ? null : n;
               }
-              function parseInpMs(raw){
+              function parseTbtMs(raw){
                 if (!raw || /^N\/A$/i.test(raw)) return null;
                 const m = String(raw).match(/([\d.,]+)\s*(ms|s)?/i);
                 if (!m) return null;
@@ -1569,23 +1573,26 @@ jQuery(function($){
               }
             
               function clsLevel(v){ if (v == null) return -1; if (v <= 0.10) return 0; if (v <= 0.25) return 1; return 2; }
-              function inpLevel(ms){ if (ms == null) return -1; if (ms <= 200) return 0; if (ms <= 500) return 1; return 2; }
+              // DESKTOP block. Lighthouse desktop TBT curve is { p10: 150, median: 350 },
+              // stricter than mobile's 200/600. Do NOT copy the mobile numbers here:
+              // a 395 ms desktop page is RED in PSI (score 0.42) but would show AMBER.
+              function tbtLevel(ms){ if (ms == null) return -1; if (ms <= 150) return 0; if (ms <= 350) return 1; return 2; }
             
               const clsValD = parseCls(clsRawD);
-              const inpMsD  = parseInpMs(inpRawD);
+              const tbtMsD  = parseTbtMs(tbtRawD);
             
               const clsLvD  = clsLevel(clsValD);
-              const inpLvD  = inpLevel(inpMsD);
+              const tbtLvD  = tbtLevel(tbtMsD);
             
               const clsMsgsD = [
                 `Your CLS is ${clsRawD} — no action needed.`,
                 `Your CLS is ${clsRawD} — reduce layout shift: set width/height for images & iframes, reserve space for ads/embeds, avoid late font swaps.`,
                 `Your CLS is ${clsRawD} — large layout shifts. Reserve space for media/ads, pre-size containers, avoid inserting content above existing content.`
               ];
-              const inpMsgsD = [
-                `Your INP is ${inpMsD} ms — no action needed.`,
-                `Your INP is ${inpMsD} ms — reduce main-thread work and long tasks; optimize input handlers and third-party scripts.`,
-                `Your INP is ${inpMsD} ms — poor input responsiveness. Break up long tasks, defer non-critical JS, and optimize event listeners.`
+              const tbtMsgsD = [
+                `Your INP is ${tbtMsD} ms — no action needed.`,
+                `Your INP is ${tbtMsD} ms — reduce main-thread work and long tasks; optimize input handlers and third-party scripts.`,
+                `Your INP is ${tbtMsD} ms — poor input responsiveness. Break up long tasks, defer non-critical JS, and optimize event listeners.`
               ];
             
               if (clsLvD === -1){
@@ -1594,10 +1601,10 @@ jQuery(function($){
                 $page4.append(`<p style="font-size:1em;color:${statusColsD[clsLvD]};"><strong>${clsMsgsD[clsLvD]}</strong></p>`);
               }
             
-              if (inpLvD === -1){
+              if (tbtLvD === -1){
                 $page4.append(`<p style="font-size:1em;color:#666;margin-bottom:20px;"><strong>Your INP is N/A — metric not available for this run.</strong></p>`);
               } else {
-                $page4.append(`<p style="font-size:1em;color:${statusColsD[inpLvD]};"><strong>${inpMsgsD[inpLvD]}</strong></p>`);
+                $page4.append(`<p style="font-size:1em;color:${statusColsD[tbtLvD]};"><strong>${tbtMsgsD[tbtLvD]}</strong></p>`);
               }
             })();
             

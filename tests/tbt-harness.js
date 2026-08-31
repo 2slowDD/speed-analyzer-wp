@@ -67,14 +67,14 @@ const reportSrc = loadSrc('report-scripts.js');
 const inpMsFn = instantiate(extractFn(adminSrc, 'inpMs').src, 'inpMs');
 const parseMsFn = instantiate(extractFn(adminSrc, 'parseMs').src, 'parseMs');
 
-const rFirst = extractFn(reportSrc, 'parseInpMs');
-const rSecond = extractFn(reportSrc, 'parseInpMs', rFirst.end);
-const parseInpMsMobile = instantiate(rFirst.src, 'parseInpMs');
-const parseInpMsDesktop = instantiate(rSecond.src, 'parseInpMs');
+const rFirst = extractFn(reportSrc, 'parseTbtMs');
+const rSecond = extractFn(reportSrc, 'parseTbtMs', rFirst.end);
+const parseInpMsMobile = instantiate(rFirst.src, 'parseTbtMs');
+const parseInpMsDesktop = instantiate(rSecond.src, 'parseTbtMs');
 
 assert(
   rSecond.start > rFirst.start,
-  'report-scripts.js must still define parseInpMs twice, once per device block.'
+  'report-scripts.js must still define parseTbtMs twice, once per device block.'
 );
 
 // Thousands separator -> full magnitude.
@@ -356,5 +356,101 @@ for (const [file, src] of [['schedule.php', schedSrc], ['compare.php', cmpSrc]])
     file + ' must use m5m_tbt/m5d_tbt.'
   );
 }
+
+// ---------------------------------------------------------------------------
+// AC-1 — device-split threshold bands, EXECUTED, not pinned.
+//
+//   mobile   green <= 200, amber <= 600, red > 600
+//   desktop  green <= 150, amber <= 350, red > 350
+//
+// These come from Lighthouse's own defaultOptions, which declares both curves
+// and picks one at runtime via context.options[context.settings.formFactor]:
+//   mobile  { p10: 200, median: 600 }
+//   desktop { p10: 150, median: 350 }
+// p10 is the score-0.9 point (green edge) and median the score-0.5 point (amber
+// edge), so "<= good / <= warn / else" reproduces Lighthouse exactly.
+//
+// Confirmed empirically: forbes.com desktop at 395 ms scores 0.42 in PSI (RED).
+// A single 200/600 rule would call that AMBER and contradict PSI on a customer
+// report.
+// ---------------------------------------------------------------------------
+const summarySrc = loadSrc('summary.php');
+
+const tFirst = extractFn(reportSrc, 'tbtLevel');
+const tSecond = extractFn(reportSrc, 'tbtLevel', tFirst.end);
+const tbtLevelMobile = instantiate(tFirst.src, 'tbtLevel');
+const tbtLevelDesktop = instantiate(tSecond.src, 'tbtLevel');
+assert(tSecond.start > tFirst.start, 'report-scripts.js must define tbtLevel twice, once per device.');
+
+// 0 = good, 1 = needs-improvement, 2 = poor, -1 = unknown.
+// Boundary values are included deliberately: <= good and <= warn.
+const MOBILE_BANDS = [[null, -1], [0, 0], [199, 0], [200, 0], [201, 1],
+                      [599, 1], [600, 1], [601, 2], [1909, 2]];
+const DESKTOP_BANDS = [[null, -1], [0, 0], [149, 0], [150, 0], [151, 1],
+                       [349, 1], [350, 1], [351, 2], [395, 2]];
+
+for (const pair of MOBILE_BANDS) {
+  const got = tbtLevelMobile(pair[0]);
+  assert(got === pair[1],
+    'tbtLevel (mobile block) for ' + pair[0] + ' ms must be ' + pair[1] + ', got ' + got +
+    '. Mobile thresholds are 200/600.');
+}
+for (const pair of DESKTOP_BANDS) {
+  const got = tbtLevelDesktop(pair[0]);
+  assert(got === pair[1],
+    'tbtLevel (desktop block) for ' + pair[0] + ' ms must be ' + pair[1] + ', got ' + got +
+    '. Desktop thresholds are 150/350 — NOT the mobile 200/600.');
+}
+
+// The two copies must genuinely differ, or someone pasted the mobile numbers twice.
+assert(
+  tbtLevelMobile(175) === 0 && tbtLevelDesktop(175) === 1,
+  'A 175 ms page must grade GREEN on mobile and AMBER on desktop. Identical results in ' +
+  'both blocks mean the device split was lost.'
+);
+assert(
+  tbtLevelMobile(395) === 1 && tbtLevelDesktop(395) === 2,
+  'The forbes.com desktop case: 395 ms is AMBER on mobile but RED on desktop, which is ' +
+  'what PSI actually reported (score 0.42).'
+);
+
+// Threshold tables carry both device entries with the exact numbers.
+assert(
+  /'tbt_mobile'\s*=>\s*\[\s*'good'\s*=>\s*200,\s*'warn'\s*=>\s*600\s*\]/.test(cmpSrc),
+  "compare.php must define 'tbt_mobile' => ['good'=>200,'warn'=>600]."
+);
+assert(
+  /'tbt_desktop'\s*=>\s*\[\s*'good'\s*=>\s*150,\s*'warn'\s*=>\s*350\s*\]/.test(cmpSrc),
+  "compare.php must define 'tbt_desktop' => ['good'=>150,'warn'=>350]."
+);
+assert(
+  /mobile:\s*\{\s*good:\s*200,\s*ok:\s*600\s*\}/.test(adminSrc) &&
+  /desktop:\s*\{\s*good:\s*150,\s*ok:\s*350\s*\}/.test(adminSrc),
+  'admin-scripts.js tbtMs table must carry both device entries with 200/600 and 150/350.'
+);
+
+// No INP threshold literals or helpers may survive on the lab surfaces.
+const labFiles = [['admin-scripts.js', adminSrc], ['report-scripts.js', reportSrc],
+                  ['compare.php', cmpSrc], ['conclusion.php', conclSrc],
+                  ['summary.php', summarySrc]];
+for (const pair of labFiles) {
+  assert(
+    !/inp_bad|inpMs\s*<=\s*200|inpM\s*<=\s*200|function inpLevel|'inp'\s*=>\s*\[/.test(pair[1]),
+    pair[0] + ' still carries an INP threshold literal or helper. Bare 200/500 values live ' +
+    'OUTSIDE the tables — grep the literals, not just the keys.'
+  );
+}
+
+// AC-5 addendum — the tile renderer has a FIFTH comma-parsing site, inline
+// rather than in a named function, so the executed AC-5 checks above cannot
+// reach it. Pin it by source text.
+const tileStart = adminSrc.indexOf('$inpCard.length');
+assert(tileStart !== -1, 'Could not locate the TBT tile renderer.');
+const tileBlock = adminSrc.slice(tileStart, tileStart + 2200);
+assert(
+  tileBlock.indexOf("replace(/,/g, '')") !== -1,
+  'The inline TBT tile parser must use the same thousands-separator rule as inpMs(). It ' +
+  'parses the very metric this release introduces.'
+);
 
 console.log('OK tbt-harness');

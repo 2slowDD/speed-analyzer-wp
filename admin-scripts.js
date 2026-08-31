@@ -264,7 +264,15 @@ function wpsaRenderResponseHeaders(headersObj) {
         lcp:   { good: 2.5, ok: 4.0 },
         fcp:   { good: 1.8, ok: 3.0 },
         cls:   { good: 0.10, ok: 0.25 },
-        inpMs: { good: 200, ok: 500 }
+        // TBT is the only metric here scored on a per-device curve. Lighthouse's
+        // own defaultOptions: mobile { p10: 200, median: 600 }, desktop
+        // { p10: 150, median: 350 }, selected by context.settings.formFactor.
+        // Do NOT collapse these to one pair — a 395 ms desktop page is RED in
+        // PSI (score 0.42) but would render AMBER on the mobile numbers.
+        tbtMs: {
+          mobile:  { good: 200, ok: 600 },
+          desktop: { good: 150, ok: 350 }
+        }
       },
       summary: {
         autoloadKB: { good: 800, ok: 1024 },
@@ -277,7 +285,9 @@ function wpsaRenderResponseHeaders(headersObj) {
         lcp_bad:    4.0,
         fcp_bad:    3.0,
         cls_bad:    0.25,
-        inp_bad:    500,
+        // Per-device: the "poor" edge is Lighthouse's median point.
+        tbt_bad_mobile:  600,
+        tbt_bad_desktop: 350,
         onjs_bad:   17,
         oncss_bad:  21,
         autoload_bad: 801
@@ -877,22 +887,27 @@ if (effectiveUrl) {
         $inpCard.addClass('is-na').css('background', WPSA_COLORS.na)
                 .find('.value').text('N/A');
       } else {
-        // parse "220 ms" or "0.22 s" → ms
+        // parse "340 ms" or "0.34 s" → ms
         var m = inpTxt.match(/([\d.,]+)\s*(ms|s)?/i);
         var inpMs = NaN;
         if (m) {
-          var val  = parseFloat(m[1].replace(',', '.'));
+          // Thousands separator vs decimal comma — same rule as inpMs(). TBT
+          // crosses 1000 ms routinely, where PSI formats "1,910 ms".
+          var val  = parseFloat(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(m[1])
+                       ? m[1].replace(/,/g, '')
+                       : m[1].replace(',', '.'));
           var unit = (m[2] || 'ms').toLowerCase();
           inpMs = (unit === 's') ? val * 1000 : val;
         }
 
-        var TH = WPSA_THRESHOLDS;
+        // TBT thresholds differ per form factor; `prefix` is 'mobile'/'desktop'.
+        var TB = WPSA_THRESHOLDS.psi.tbtMs[prefix === 'desktop' ? 'desktop' : 'mobile'];
         var inpBg = !isFinite(inpMs) ? WPSA_COLORS.na
-                   : (inpMs <= TH.psi.inpMs.good ? WPSA_COLORS.green
-                     : (inpMs <= TH.psi.inpMs.ok ? WPSA_COLORS.amber : WPSA_COLORS.red));
+                   : (inpMs <= TB.good ? WPSA_COLORS.green
+                     : (inpMs <= TB.ok ? WPSA_COLORS.amber : WPSA_COLORS.red));
 
         $inpCard.css('background', inpBg).find('.value').text(inpTxt);
-        if (isFinite(inpMs) && inpMs <= 200) {
+        if (isFinite(inpMs) && inpMs <= TB.good) {
           $inpCard.find('.value').append(' <span class="icon">✅</span>');
         }
       }
@@ -2901,15 +2916,17 @@ function wpsa_renderM5DiagFromState() {
     }
     
     var cls  = stripCheckmark(perf.cls),
-        inp  = stripCheckmark(perf.inp);
-    
+        inp  = stripCheckmark(perf.tbt);
+
     var clsN = parseFloat(String(cls).replace(',', '.'));
     var inpM = parseMs(inp);
-    
+
+    // TBT bands are per form factor; `strat` is 'mobile' or 'desktop'.
+    var TBs = WPSA_THRESHOLDS.psi.tbtMs[strat === 'desktop' ? 'desktop' : 'mobile'];
     var bgC = (cls === 'N/A' || !isFinite(clsN)) ? WPSA_COLORS.na
          : (clsN <= 0.10 ? WPSA_COLORS.green : (clsN <= 0.25 ? WPSA_COLORS.amber : WPSA_COLORS.red));
     var bgI = (inp === 'N/A' || !isFinite(inpM)) ? WPSA_COLORS.na
-         : (inpM <= 200 ? WPSA_COLORS.green : (inpM <= 500 ? WPSA_COLORS.amber : WPSA_COLORS.red));
+         : (inpM <= TBs.good ? WPSA_COLORS.green : (inpM <= TBs.ok ? WPSA_COLORS.amber : WPSA_COLORS.red));
     
     var $clsTile = $('#summary-module_5b .psi-half.cls');
     $clsTile.css('background', bgC).removeClass('na');
@@ -3099,9 +3116,11 @@ function wpsa_renderM5DiagFromState() {
     if (ln > TH.rec.lcp_bad)                    recs.push('Decrease LCP');
     if (fn > TH.rec.fcp_bad)                    recs.push('Decrease FCP');
 
-    // ✅ add CLS / INP
+    // ✅ add CLS / TBT
     if (isFinite(clsN) && clsN > TH.rec.cls_bad) recs.push('Reduce layout shifts (CLS)');
-    if (isFinite(inpM) && inpM > TH.rec.inp_bad) recs.push('Improve interaction latency (INP)');
+    if (isFinite(inpM) && inpM > (strat === 'desktop' ? TH.rec.tbt_bad_desktop : TH.rec.tbt_bad_mobile)) {
+      recs.push('Reduce main-thread blocking (TBT)');
+    }
 
     // Onloads
     if (jsIsNum  && onJsNum  > TH.rec.onjs_bad)  recs.push('Reduce onload JavaScript files');
