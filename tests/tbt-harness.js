@@ -593,4 +593,32 @@ assert(
   "cwv-ui.js must keep INP's device-independent Core Web Vitals thresholds (200/500)."
 );
 
+// ---------------------------------------------------------------------------
+// PRODUCER/CONSUMER CONSISTENCY on window._wpsa_perf.
+//
+// The renderer, the summary and the log writer all read `.tbt` off this object.
+// Four separate places WRITE it: the AJAX response handler, the log rehydrator,
+// a failure placeholder and a reset. Changing the readers without the writers
+// leaves the tile and the results log silently showing N/A — which is exactly
+// what happened during implementation, on three of the four writers.
+// ---------------------------------------------------------------------------
+assert(
+  !/\binp:\s*(inpTxt|'N\/A')/.test(adminSrc),
+  'A window._wpsa_perf writer still sets the key `inp`. Every reader now uses `.tbt`, ' +
+  'so this silently yields undefined and the tile and results log show N/A.'
+);
+const perfWriters = (adminSrc.match(/\btbt:\s*(inpTxt|'N\/A'|tbtTxt)/g) || []).length;
+assert(
+  perfWriters >= 4,
+  'Expected at least 4 window._wpsa_perf writers to set `tbt` (AJAX handler, log ' +
+  'rehydrator, failure placeholder, reset); found ' + perfWriters + '.'
+);
+assert(
+  loadSrc('schedule-scripts.js').indexOf("m === 'tbt'") !== -1 &&
+  loadSrc('schedule-scripts.js').indexOf("m === 'inp'") === -1,
+  'schedule-scripts.js must branch on "tbt" for the threshold-input defaults. The ' +
+  'dropdown now emits "tbt", so an "inp" branch is dead and selecting TBT would fall ' +
+  "through to LCP's defaults (2.5, step 0.1, suffix s) instead of 200/1/ms."
+);
+
 console.log('OK tbt-harness');

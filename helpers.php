@@ -418,6 +418,25 @@ function wpsa_get_origin_response_headers( $url ) {
     /**
      * Compute "CWV Assessment: PASSED/FAILED/N/A" based on LCP+CLS+INP categories.
      *
+     * NOTE - this function deliberately still uses INP, not TBT.
+     *
+     * Release 1.19.0 replaced INP with Total Blocking Time on every LAB surface.
+     * This is the FIELD lane (CrUX real-user data) and it must NOT follow:
+     *
+     *   1. CrUX publishes no total_blocking_time metric. Its field set is LCP,
+     *      INP, CLS, FCP, TTFB and RTT, so there is nothing to swap in.
+     *   2. Google defines the Core Web Vitals assessment as LCP + INP + CLS.
+     *      Removing INP here would turn a three-of-three check into a
+     *      two-of-three one that can report PASSED for a site Google marks
+     *      FAILED - on a customer-facing report.
+     *   3. Google's own guidance is that TBT is "a proxy metric for INP in the
+     *      lab (where INP cannot usually be accurately measured)". The lab proxy
+     *      does not replace the field metric it proxies for.
+     *
+     * Guarded by tests/tbt-harness.js (AC-9), which goes red if this function or
+     * cwv-ui.js is converted to TBT. See tasks/2026-08-31-inp-to-tbt-design.md,
+     * decision D5.
+     *
      * @param array $metrics Normalized map keyed by PSI metric ids.
      * @return string
      */

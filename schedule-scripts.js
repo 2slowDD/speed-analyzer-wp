@@ -125,7 +125,9 @@ jQuery(function ($) {
       if (m === 'cls') {
         return { defVal: '0.10', step: '0.01', suffix: '' };
       }
-      if (m === 'inp') {
+      if (m === 'tbt') {
+        // Mobile TBT 'good' edge. The dropdown is device-agnostic, so this is
+        // the permissive default; the user can type any value.
         return { defVal: '200', step: '1', suffix: 'ms' };
       }
       // lcp default

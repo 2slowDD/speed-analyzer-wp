@@ -3,11 +3,11 @@
 <p align="center">
   <img alt="CI Passing" src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge">
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-green?style=for-the-badge"></a>
-  <img alt="Version 1.18.6" src="https://img.shields.io/badge/Version-1.18.6-blue?style=for-the-badge">
+  <img alt="Version 1.19.0" src="https://img.shields.io/badge/Version-1.19.0-blue?style=for-the-badge">
 </p>
 
 **In-dashboard website performance auditing for WordPress.**
-Version: 1.18.6 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
+Version: 1.19.0 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
 
 > Official plugin page: [wpservice.pro/our-products/speed-analyzer-wp-plugin](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/)
 
@@ -15,7 +15,7 @@ Version: 1.18.6 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
 
 ## What It Does
 
-Speed Analyzer gives admins a one-click speed audit directly in the WordPress dashboard — no external account sign-up required. Results are powered by Cloudflare Workers (TTFB) and the Google PageSpeed Insights API (LCP/FCP/CLS/INP), proxied through a managed service so no API key configuration is needed.
+Speed Analyzer gives admins a one-click speed audit directly in the WordPress dashboard — no external account sign-up required. Results are powered by Cloudflare Workers (TTFB) and the Google PageSpeed Insights API (LCP/FCP/CLS/TBT), proxied through a managed service so no API key configuration is needed.
 
 **Modules:**
 
@@ -23,7 +23,7 @@ Speed Analyzer gives admins a one-click speed audit directly in the WordPress da
 |---|--------|---------|
 | 1 | Server TTFB | Time to First Byte, cache status, response headers |
 | 2 | Page Asset Summary | Request count, page size, JS/CSS onload timing |
-| 3 | Performance & Diagnostics | LCP, FCP, CLS, INP, mobile/desktop screenshots |
+| 3 | Performance & Diagnostics | LCP, FCP, CLS, TBT, mobile/desktop screenshots |
 | 4 | Autoloaded Options | Total size, top-10 largest options |
 | 5 | System Info | Active plugins, PHP version, DB server & size, persistent object cache |
 | 6 | Summary & Recommendations | Color-coded recommendations |
@@ -69,7 +69,7 @@ This plugin delegates all testing to remote services. **No personal data is coll
 | Service | Used For | Data Sent |
 |---------|----------|-----------|
 | Cloudflare Workers (`globalwpspeed.dalibord79.workers.dev`) | TTFB measurement, PSI proxy | Tested URL + strategy |
-| Google PageSpeed Insights API | LCP/FCP/CLS/INP diagnostics | Proxied via CF Worker |
+| Google PageSpeed Insights API | LCP/FCP/CLS/TBT diagnostics | Proxied via CF Worker |
 | License service (`wpservice.pro`) | Quota enforcement, license activation | License key + site URL |
 
 - [Privacy Policy](https://wpservice.pro/privacy-policy)

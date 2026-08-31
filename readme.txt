@@ -5,7 +5,7 @@ Tags: performance, speed, ttfb, pagespeed
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 1.18.6
+Stable tag: 1.19.0
 License:         GPL v3 or later
 License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -22,7 +22,7 @@ Speed Analyzer gives you an in-dashboard speed audit of your website and more:
 
 1. **Server TTFB and cache status**  
 2. **Page asset summary: Requests, Page Size, Onloads (JS and CSS)**  
-3. **Performance & diagnostics: PageSpeed Insights (LCP, FCP, CLS and INP)/CWV**
+3. **Performance & diagnostics: PageSpeed Insights (LCP, FCP, CLS and TBT)/CWV**
 4. **Autoloaded Options size and list** 
 5. **Persistent Object Cache**  
 6. **Various other information: Active plugins # count/list, PHP version, DB server version and size**
@@ -64,7 +64,7 @@ All PHP and JavaScript code is included in this plugin. No features are disabled
 Speed Analyzer doesn’t run any tests locally — every audit is performed by our managed service at https://globalwpspeed.dalibord79.workers.dev.
 
 1. **Google PageSpeed Insights API**  
-    • Modules 2 and 3 of the plugin ultimately fetch (via our proxy worker) real‐time LCP/FCP/CLS/INP diagnostic data from Google’s PSI service.
+    • Modules 2 and 3 of the plugin ultimately fetch (via our proxy worker) real‐time LCP/FCP/CLS/TBT diagnostic data from Google’s PSI service.
     • Instead of hitting www.googleapis.com directly, the plugin sends your test URL + strategy to Cloudflare Worker, which then forwards the request to Google PSI on your behalf.
     – Terms of Service: https://developers.google.com/terms
    
@@ -109,7 +109,7 @@ The server will return a “quota exceeded” error. You can either wait until m
 
 1. Dashboard view – Server performance and page asset summary  
 2. Page asset summary with the onload CSS list open and ready to copy
-3. Performance and Diagnostics – LCP/FCP/CLS/INP   
+3. Performance and Diagnostics – LCP/FCP/CLS/TBT   
 4. Mobile/Desktop results sorting - Mobile and desktop test functionality
 5. Autoloaded options size (with top 10 list available), persistent object cache, active plugins, and other server data
 6. Test conclusion with recommendations
@@ -122,6 +122,15 @@ The server will return a “quota exceeded” error. You can either wait until m
 13. Editor SA metrics
  
 == Changelog ==
+
+= 1.19.0 =
+* Total Blocking Time (TBT) replaces INP in all lab measurements, matching what Google PageSpeed Insights now reports.
+* TBT uses Lighthouse's per-device thresholds: 200/600 ms on mobile, 150/350 ms on desktop.
+* The Core Web Vitals (field) assessment continues to report INP, which is the Core Web Vital measured from real users. TBT has no field equivalent.
+* Scheduled alerts can now watch TBT. An existing INP alert keeps working and is migrated automatically.
+* Fixed: values above 1000 ms were misread when PageSpeed Insights formatted them with a thousands separator.
+* Fixed: a TBT of exactly 0 ms is now recorded instead of showing N/A.
+* Tests recorded before 1.19.0 keep their INP values in the raw log; they are not shown in the TBT column because the metrics are not comparable.
 
 = 1.18.6 =
 * Coding-standards and security pass: every Plugin Check error resolved across the plugin (output escaping, input sanitization and unslashing, prepared SQL, translator comments, direct file access protection).

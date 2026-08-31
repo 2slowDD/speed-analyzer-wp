@@ -3,6 +3,22 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.19.0]
+### Changed
+- **Total Blocking Time replaces INP on every lab measurement**, matching what Google PageSpeed Insights now reports. Affects the score tiles, the Compare tab and its trends chart, the PDF report, the scheduled email and the editor column.
+- TBT is graded on Lighthouse's per-device thresholds - mobile 200/600 ms, desktop 150/350 ms - taken from the audit's own scoring curves. Every other metric keeps a single threshold pair; TBT is the only one Lighthouse scores differently per form factor.
+- The scheduled-alert metric dropdown now offers TBT. An alert configured on INP before this release keeps working: the stored value is accepted and migrated on read, so no re-saving is needed.
+- Advice text for this metric now describes main-thread blocking and long tasks rather than interaction latency.
+
+### Fixed
+- Millisecond values above 1000 were parsed as decimals when PageSpeed Insights formatted them with a thousands separator, so "1,910 ms" was read as 1.91 ms. This affected the results log as well as the on-screen colour coding.
+- A Total Blocking Time of exactly 0 ms is now recorded rather than reported as N/A. Zero is a normal result on a well-optimised page.
+
+### Notes
+- **The Core Web Vitals (field) assessment still reports INP.** That block shows real-user CrUX data, where Google defines the assessment as LCP + INP + CLS, and no field equivalent of TBT exists. TBT is Google's lab *proxy* for INP, not a replacement for it.
+- Results recorded before 1.19.0 keep their INP values in the raw log. They are not shown in the TBT column, because the two are different metrics on different scales; the Compare tab explains this inline.
+- The results-log format stays readable by 1.18.6, so downgrading does not lose earlier rows.
+
 ## [1.18.6]
 ### Added
 - Chart.js 4.4.1 is now bundled at `assets/js/chart.umd.min.js`; no admin script is loaded from a third-party CDN any more.

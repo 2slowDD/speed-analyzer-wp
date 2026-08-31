@@ -1262,7 +1262,7 @@ if (effectiveUrl) {
               lcp:   lcpTxt,
               fcp:   fcpTxt,
               cls:   clsTxt,
-              inp:   inpTxt,
+              tbt:   inpTxt,
               diagnostics: []
             };
 
@@ -2466,7 +2466,7 @@ function wpsa_updateLoadBtnState() {
           lcp:'N/A',
           fcp:'N/A',
           cls:'N/A',
-          inp:'N/A',
+          tbt:'N/A',
           diagnostics:[{
             title:'Module 5 ' + strat + ' failed. Please retry.',
             value:'',
@@ -3674,7 +3674,7 @@ try { wpsa_pickRunMetaFromModule1(); } catch (e) {}
           // keep in-memory copy consistent
           var id = $scope.is('#perf-desktop') ? 'desktop' : 'mobile';
           if (window._wpsa_perf && window._wpsa_perf[id]) {
-            Object.assign(window._wpsa_perf[id], { score:'N/A', lcp:'N/A', fcp:'N/A', cls:'N/A', inp:'N/A' });
+            Object.assign(window._wpsa_perf[id], { score:'N/A', lcp:'N/A', fcp:'N/A', cls:'N/A', tbt:'N/A' });
           }
         }
      
