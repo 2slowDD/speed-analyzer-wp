@@ -453,8 +453,8 @@ function wpsa_render_compare_results_panel_ui() {
                 'm2m_oncss'=> null, 'm2d_oncss'=> null,
                 'm5m_perf'=> null, 'm5m_lcp'=> null, 'm5m_fcp'=> null,
                 'm5d_perf'=> null, 'm5d_lcp'=> null, 'm5d_fcp'=> null,
-                'm5m_cls'=> null, 'm5m_inp'=> null,
-                'm5d_cls'=> null, 'm5d_inp'=> null,
+                'm5m_cls'=> null, 'm5m_tbt'=> null,
+                'm5d_cls'=> null, 'm5d_tbt'=> null,
             ];
             
             // Precompute timestamp once; reuse later for table + charts
@@ -498,7 +498,9 @@ function wpsa_render_compare_results_panel_ui() {
                 $entry['m5m_lcp']  = (strcasecmp($mm[2],'N/A')===0) ? null : floatval(str_replace(',', '.', $mm[2]));
                 $entry['m5m_fcp']  = (strcasecmp($mm[3],'N/A')===0) ? null : floatval(str_replace(',', '.', $mm[3]));
                 $entry['m5m_cls']  = (isset($mm[4]) && strcasecmp($mm[4],'N/A')!==0) ? floatval(str_replace(',', '.', $mm[4])) : null;
-                $entry['m5m_inp']  = (isset($mm[5]) && strcasecmp($mm[5],'N/A')!==0) ? intval($mm[5]) : null;
+                // $mm[5] is the INP capture — intentionally not consumed. INP is no
+                // longer reported; the token stays so this line keeps the 1.18.6
+                // grammar and a downgrade can still read it. See decision D7.
             }
             elseif ( preg_match(
                 '/^Module\s+5\s+Desktop:\s*Performance:\s*([0-9]+|N\/A)\s*,\s*'
@@ -512,9 +514,17 @@ function wpsa_render_compare_results_panel_ui() {
                 $entry['m5d_lcp']  = (strcasecmp($mm[2],'N/A')===0) ? null : floatval(str_replace(',', '.', $mm[2]));
                 $entry['m5d_fcp']  = (strcasecmp($mm[3],'N/A')===0) ? null : floatval(str_replace(',', '.', $mm[3]));
                 $entry['m5d_cls']  = (isset($mm[4]) && strcasecmp($mm[4],'N/A')!==0) ? floatval(str_replace(',', '.', $mm[4])) : null;
-                $entry['m5d_inp']  = (isset($mm[5]) && strcasecmp($mm[5],'N/A')!==0) ? intval($mm[5]) : null;
+                // $mm[5] is the INP capture — intentionally not consumed. See D7.
             }
-                
+
+            // Module 5 TBT lines. Their own line, so 1.18.6's parsers skip them.
+            elseif ( preg_match('/^Module\s+5\s+Mobile\s+TBT:\s*(N\/A|[0-9]+)\s*$/i', $ln, $mm) ) {
+                $entry['m5m_tbt'] = (strcasecmp($mm[1],'N/A')!==0) ? intval($mm[1]) : null;
+            }
+            elseif ( preg_match('/^Module\s+5\s+Desktop\s+TBT:\s*(N\/A|[0-9]+)\s*$/i', $ln, $mm) ) {
+                $entry['m5d_tbt'] = (strcasecmp($mm[1],'N/A')!==0) ? intval($mm[1]) : null;
+            }
+
                 elseif ( preg_match('/^Module\s+2\s+Mobile:\s*([0-9]+|N\/A)\s*req,\s*([0-9\.]+|N\/A)\s*KB(?:;\s*Onload\s+JS:\s*([0-9]+))?(?:;\s*Onload\s+CSS:\s*([0-9]+))?(?:;.*)?$/i', $ln, $mm) ) {
                     $entry['m2m_req']   = (strcasecmp($mm[1], 'N/A') === 0) ? null : intval($mm[1]);
                     $entry['m2m_size_kb'] = (strcasecmp($mm[2], 'N/A') === 0) ? null : floatval(str_replace(',', '.', $mm[2]));
@@ -804,8 +814,8 @@ function wpsa_render_compare_results_panel_ui() {
         . '</div>';
 
         $inp_md = '<div class="md-wrap">'
-        . '<div class="md-row"><span class="md-tag">M</span>'.$chip($r['m5m_inp'],'inp').'</div>'
-        . '<div class="md-row"><span class="md-tag">D</span>'.$chip($r['m5d_inp'],'inp').'</div>'
+        . '<div class="md-row"><span class="md-tag">M</span>'.$chip($r['m5m_tbt'],'inp').'</div>'
+        . '<div class="md-row"><span class="md-tag">D</span>'.$chip($r['m5d_tbt'],'inp').'</div>'
         . '</div>';
 
 
@@ -1149,7 +1159,7 @@ function wpsa_render_compare_results_panel_ui() {
             $render_row('FCP',              $B['m5m_fcp'],  $A['m5m_fcp'],  's', true,  false, $shade);
             $shade = !$shade;
             $render_row('CLS', $B['m5m_cls'], $A['m5m_cls'], '',  true,  false, $shade);
-            $render_row('INP', $B['m5m_inp'], $A['m5m_inp'], 'ms', true,  false, $shade);
+            $render_row('INP', $B['m5m_tbt'], $A['m5m_tbt'], 'ms', true,  false, $shade);
 
 
             /* ========== PSI metrics (Desktop) ========== */
@@ -1159,7 +1169,7 @@ function wpsa_render_compare_results_panel_ui() {
             $render_row('FCP',             $B['m5d_fcp'],  $A['m5d_fcp'],  's', true,  false, $shade);
             $shade = !$shade;
             $render_row('CLS', $B['m5d_cls'], $A['m5d_cls'], '',  true,  false, $shade);
-            $render_row('INP', $B['m5d_inp'], $A['m5d_inp'], 'ms', true,  false, $shade);
+            $render_row('INP', $B['m5d_tbt'], $A['m5d_tbt'], 'ms', true,  false, $shade);
 
 
             /* ========== Other info ========== */
@@ -1241,8 +1251,8 @@ function wpsa_render_compare_results_panel_ui() {
         $fcp_d[] = is_numeric($r['m5d_fcp'])       ? (float)$r['m5d_fcp']     : null;
         $cls_m[] = is_numeric($r['m5m_cls']) ? (float)$r['m5m_cls'] : null;
         $cls_d[] = is_numeric($r['m5d_cls']) ? (float)$r['m5d_cls'] : null;
-        $inp_m[] = is_numeric($r['m5m_inp']) ? (int)$r['m5m_inp']   : null;
-        $inp_d[] = is_numeric($r['m5d_inp']) ? (int)$r['m5d_inp']   : null;
+        $inp_m[] = is_numeric($r['m5m_tbt']) ? (int)$r['m5m_tbt']   : null;
+        $inp_d[] = is_numeric($r['m5d_tbt']) ? (int)$r['m5d_tbt']   : null;
         $req_m[] = (is_numeric($r['m2m_req']) && (int)$r['m2m_req'] !== 0) ? (int)$r['m2m_req'] : null;
         $req_d[] = (is_numeric($r['m2d_req']) && (int)$r['m2d_req'] !== 0) ? (int)$r['m2d_req'] : null;
     

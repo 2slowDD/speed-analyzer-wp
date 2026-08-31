@@ -308,7 +308,12 @@ function wpsa_schedule_log_module5( $tested_url, $results_log, $test_no = null )
                 'lcp'  => 'N/A',
                 'fcp'  => 'N/A',
                 'cls'  => 'N/A',
+                // INP is no longer measured. This stays fixed at 'N/A' as a
+                // compatibility placeholder so the Module 5 log line keeps the
+                // exact 1.18.6 grammar and a downgrade can still parse it.
+                // See tasks/2026-08-31-inp-to-tbt-design.md, decision D7.
                 'inp'  => 'N/A',
+                'tbt'  => 'N/A',
             );
     
             $endpoint = add_query_arg(
@@ -436,47 +441,31 @@ function wpsa_schedule_log_module5( $tested_url, $results_log, $test_no = null )
                 $out[ $strat ]['cls'] = sprintf( '%.3f', (float) $cls_raw );
             }
     
-            // INP (ms) – handle multiple PSI shapes (lab + field data fallbacks).
-            $inp_raw = null;
-    
-            // 1) Primary: lab audit numericValue (most common).
-            if ( isset( $lh['audits']['experimental-interaction-to-next-paint']['numericValue'] )
-                && is_numeric( $lh['audits']['experimental-interaction-to-next-paint']['numericValue'] )
+            // TBT (ms) – LAB ONLY. This replaces the old INP cascade, which had a
+            // stage-3 CrUX field fallback. There is no field total_blocking_time
+            // (the CrUX field set is LCP, INP, CLS, FCP, TTFB, RTT), so that stage
+            // is deliberately gone. Do not reintroduce it.
+            $tbt_raw = null;
+
+            // 1) Primary: lab audit numericValue.
+            if ( isset( $lh['audits']['total-blocking-time']['numericValue'] )
+                && is_numeric( $lh['audits']['total-blocking-time']['numericValue'] )
             ) {
-                $inp_raw = $lh['audits']['experimental-interaction-to-next-paint']['numericValue'];
-            } elseif ( isset( $lh['audits']['interaction-to-next-paint']['numericValue'] )
-                && is_numeric( $lh['audits']['interaction-to-next-paint']['numericValue'] )
+                $tbt_raw = $lh['audits']['total-blocking-time']['numericValue'];
+
+                // 2) Fallback: the metrics audit's own totalBlockingTime.
+            } elseif ( isset( $lh['audits']['metrics']['details']['items'][0]['totalBlockingTime'] )
+                && is_numeric( $lh['audits']['metrics']['details']['items'][0]['totalBlockingTime'] )
             ) {
-                $inp_raw = $lh['audits']['interaction-to-next-paint']['numericValue'];
+                $tbt_raw = $lh['audits']['metrics']['details']['items'][0]['totalBlockingTime'];
             }
-    
-            // 2) Fallback: audit details.items[0].metricValue (some PSI variants).
-            if ( null === $inp_raw ) {
-                if ( isset( $lh['audits']['experimental-interaction-to-next-paint']['details']['items'][0]['metricValue'] )
-                    && is_numeric( $lh['audits']['experimental-interaction-to-next-paint']['details']['items'][0]['metricValue'] )
-                ) {
-                    $inp_raw = $lh['audits']['experimental-interaction-to-next-paint']['details']['items'][0]['metricValue'];
-                } elseif ( isset( $lh['audits']['interaction-to-next-paint']['details']['items'][0]['metricValue'] )
-                    && is_numeric( $lh['audits']['interaction-to-next-paint']['details']['items'][0]['metricValue'] )
-                ) {
-                    $inp_raw = $lh['audits']['interaction-to-next-paint']['details']['items'][0]['metricValue'];
-                }
-            }
-    
-            // 3) Fallback: field data (loadingExperience / originLoadingExperience).
-            if ( null === $inp_raw && isset( $data['loadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']['percentile'] )
-                && is_numeric( $data['loadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']['percentile'] )
-            ) {
-                $inp_raw = $data['loadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']['percentile'];
-            } elseif ( null === $inp_raw && isset( $data['originLoadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']['percentile'] )
-                && is_numeric( $data['originLoadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']['percentile'] )
-            ) {
-                $inp_raw = $data['originLoadingExperience']['metrics']['INTERACTION_TO_NEXT_PAINT']['percentile'];
-            }
-    
-            if ( is_numeric( $inp_raw ) && $inp_raw > 0 ) {
-                // Keep same units as manual Module 5: ms → integer ms.
-                $out[ $strat ]['inp'] = (string) (int) round( (float) $inp_raw );
+
+            // NOTE the >= 0, not > 0. A TBT of exactly 0 ms is a legitimate and
+            // common result on a well-optimised page (observed on 5 of 8 real
+            // pages sampled). The INP code this replaced used "> 0", which would
+            // silently turn a real 0 into N/A.
+            if ( is_numeric( $tbt_raw ) && $tbt_raw >= 0 ) {
+                $out[ $strat ]['tbt'] = (string) (int) round( (float) $tbt_raw );
             }
         }
     
@@ -491,6 +480,9 @@ function wpsa_schedule_log_module5( $tested_url, $results_log, $test_no = null )
             $m = $out[ $key ];
 
             // Module 5 summary line (same format as manual runs).
+            // The grammar of THIS line is frozen at the 1.18.6 shape so a
+            // downgrade can still parse Performance/LCP/FCP/CLS from it. $m['inp']
+            // is now always the literal 'N/A' (see the $out defaults above).
             $lines[] = sprintf(
                 "Module 5 %s: Performance: %s, LCP: %s, FCP: %s, CLS: %s, INP: %s\n",
                 $label,
@@ -500,6 +492,12 @@ function wpsa_schedule_log_module5( $tested_url, $results_log, $test_no = null )
                 $m['cls'],
                 $m['inp']
             );
+
+            // TBT rides on its own line. 1.18.6's parsers are if/elseif chains
+            // over lines, so they skip this one harmlessly. It could not be folded
+            // into the line above: that parser requires CLS to be followed
+            // directly by ", INP:" and then end-of-line.
+            $lines[] = sprintf( "Module 5 %s TBT: %s\n", $label, $m['tbt'] );
 
             // CWV (field) line for scheduled runs (URL/page preferred; Origin fallback).
             if (
@@ -637,12 +635,12 @@ function wpsa_schedule_parse_tests_from_log( $results_log ) {
                 'm5m_lcp'     => null,
                 'm5m_fcp'     => null,
                 'm5m_cls'     => null,
-                'm5m_inp'     => null,
+                'm5m_tbt'     => null,
                 'm5d_perf'    => null,
                 'm5d_lcp'     => null,
                 'm5d_fcp'     => null,
                 'm5d_cls'     => null,
-                'm5d_inp'     => null,
+                'm5d_tbt'     => null,
                 
                 // CWV (field) placeholders (scope + assessment).
                 'cwv_mobile_scope'              => null, // URL | Origin
@@ -679,7 +677,9 @@ function wpsa_schedule_parse_tests_from_log( $results_log ) {
             $current['m5m_lcp']  = strtoupper( $mm[2] ) === 'N/A' ? 'N/A' : $mm[2];
             $current['m5m_fcp']  = strtoupper( $mm[3] ) === 'N/A' ? 'N/A' : $mm[3];
             $current['m5m_cls']  = strtoupper( $mm[4] ) === 'N/A' ? 'N/A' : $mm[4];
-            $current['m5m_inp']  = strtoupper( $mm[5] ) === 'N/A' ? 'N/A' : (int) $mm[5];
+            // $mm[5] is the INP capture. It is intentionally NOT consumed: INP is
+            // no longer reported, and the token survives only so this line keeps
+            // the 1.18.6 grammar. See decision D7.
             continue;
         }
 
@@ -693,10 +693,20 @@ function wpsa_schedule_parse_tests_from_log( $results_log ) {
             $current['m5d_lcp']  = strtoupper( $mm[2] ) === 'N/A' ? 'N/A' : $mm[2];
             $current['m5d_fcp']  = strtoupper( $mm[3] ) === 'N/A' ? 'N/A' : $mm[3];
             $current['m5d_cls']  = strtoupper( $mm[4] ) === 'N/A' ? 'N/A' : $mm[4];
-            $current['m5d_inp']  = strtoupper( $mm[5] ) === 'N/A' ? 'N/A' : (int) $mm[5];
+            // $mm[5] is the INP capture — intentionally not consumed. See D7.
             continue;
         }
-        
+
+        // Module 5 TBT lines (own line, so 1.18.6 parsers skip them).
+        if ( preg_match( '/^Module\s+5\s+Mobile\s+TBT:\s*(N\/A|[0-9]+)\s*$/i', $ln, $mm ) ) {
+            $current['m5m_tbt'] = strtoupper( $mm[1] ) === 'N/A' ? 'N/A' : (int) $mm[1];
+            continue;
+        }
+        if ( preg_match( '/^Module\s+5\s+Desktop\s+TBT:\s*(N\/A|[0-9]+)\s*$/i', $ln, $mm ) ) {
+            $current['m5d_tbt'] = strtoupper( $mm[1] ) === 'N/A' ? 'N/A' : (int) $mm[1];
+            continue;
+        }
+
        // CWV (Mobile) line (URL/Origin/Page) – keep scope + assessment.
         if ( preg_match(
             '/^Module\s+5\s+CWV\s+(URL|Origin|Page)\s+\(Mobile\):\s*Assessment:\s*(PASSED|FAILED|N\/A)\b/i',
@@ -849,7 +859,7 @@ function wpsa_schedule_parse_results_log_latest_prev( $log_path, $current_test_i
 		'lcp'         => ( isset( $best_test['m5m_lcp'] )  && null !== $best_test['m5m_lcp'] )  ? (string) $best_test['m5m_lcp']  : 'N/A',
 		'fcp'         => ( isset( $best_test['m5m_fcp'] )  && null !== $best_test['m5m_fcp'] )  ? (string) $best_test['m5m_fcp']  : 'N/A',
 		'cls'         => ( isset( $best_test['m5m_cls'] )  && null !== $best_test['m5m_cls'] )  ? (string) $best_test['m5m_cls']  : 'N/A',
-		'inp'         => ( isset( $best_test['m5m_inp'] )  && null !== $best_test['m5m_inp'] )  ? (string) $best_test['m5m_inp']  : 'N/A',
+		'inp'         => ( isset( $best_test['m5m_tbt'] )  && null !== $best_test['m5m_tbt'] )  ? (string) $best_test['m5m_tbt']  : 'N/A',
 	);
 
 	// Desktop.
@@ -858,7 +868,7 @@ function wpsa_schedule_parse_results_log_latest_prev( $log_path, $current_test_i
 		'lcp'         => ( isset( $best_test['m5d_lcp'] )  && null !== $best_test['m5d_lcp'] )  ? (string) $best_test['m5d_lcp']  : 'N/A',
 		'fcp'         => ( isset( $best_test['m5d_fcp'] )  && null !== $best_test['m5d_fcp'] )  ? (string) $best_test['m5d_fcp']  : 'N/A',
 		'cls'         => ( isset( $best_test['m5d_cls'] )  && null !== $best_test['m5d_cls'] )  ? (string) $best_test['m5d_cls']  : 'N/A',
-		'inp'         => ( isset( $best_test['m5d_inp'] )  && null !== $best_test['m5d_inp'] )  ? (string) $best_test['m5d_inp']  : 'N/A',
+		'inp'         => ( isset( $best_test['m5d_tbt'] )  && null !== $best_test['m5d_tbt'] )  ? (string) $best_test['m5d_tbt']  : 'N/A',
 	);
 
 	return $data;
@@ -1473,8 +1483,8 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
         $d_fcp_val = $val( $test_data['m5d_fcp'] );
         $m_cls_val = $val( $test_data['m5m_cls'] );
         $d_cls_val = $val( $test_data['m5d_cls'] );
-        $m_inp_val = $val( $test_data['m5m_inp'] );
-        $d_inp_val = $val( $test_data['m5d_inp'] );
+        $m_inp_val = $val( $test_data['m5m_tbt'] );
+        $d_inp_val = $val( $test_data['m5d_tbt'] );
 
         $m_lcp_attr = 'font-size:13px;' . $metric_style( 'lcp', $m_lcp_val );
         $d_lcp_attr = 'font-size:13px;' . $metric_style( 'lcp', $d_lcp_val );
@@ -2571,13 +2581,13 @@ $devices_thresh_to_check = ( ! empty( $alert_devices_thresh ) && is_array( $aler
                 $cur_lcp  = $current['m5m_lcp']  ?? null;
                 $cur_fcp  = $current['m5m_fcp']  ?? null;
                 $cur_cls  = $current['m5m_cls']  ?? null;
-                $cur_inp  = $current['m5m_inp']  ?? null;
+                $cur_inp  = $current['m5m_tbt']  ?? null;
                 $prev_dev = ( ! empty( $prev['mobile'] ) && is_array( $prev['mobile'] ) ) ? $prev['mobile'] : array();
             } else {
                 $cur_lcp  = $current['m5d_lcp']  ?? null;
                 $cur_fcp  = $current['m5d_fcp']  ?? null;
                 $cur_cls  = $current['m5d_cls']  ?? null;
-                $cur_inp  = $current['m5d_inp']  ?? null;
+                $cur_inp  = $current['m5d_tbt']  ?? null;
                 $prev_dev = ( ! empty( $prev['desktop'] ) && is_array( $prev['desktop'] ) ) ? $prev['desktop'] : array();
             }
 

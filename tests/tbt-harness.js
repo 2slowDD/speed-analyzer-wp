@@ -191,4 +191,170 @@ assert(
   'The tile renderer must read the tbt payload key.'
 );
 
+// ---------------------------------------------------------------------------
+// AC-11 / AC-2 / AC-3 / AC-6 — the results-log grammar (decision D7).
+//
+// Per device, 1.19.0 writes TWO lines:
+//   Module 5 Mobile: Performance: 87, LCP: 2.1, FCP: 1.4, CLS: 0.05, INP: N/A
+//   Module 5 Mobile TBT: 340
+//
+// The first keeps 1.18.6's EXACT grammar so a downgrade can still read
+// Performance/LCP/FCP/CLS. TBT could not be folded into that line: 1.18.6's
+// parser requires CLS to be followed directly by ", INP:" and then end-of-line,
+// so any TBT token on it breaks the $ anchor. The second line is invisible to
+// every 1.18.6 parser (they are if/elseif chains; unmatched lines are skipped).
+// ---------------------------------------------------------------------------
+const schedSrc = loadSrc('schedule.php');
+const cmpSrc = loadSrc('compare.php');
+const conclSrc = loadSrc('conclusion.php');
+
+const MAIN_LINE = 'Module 5 Mobile: Performance: 87, LCP: 2.1, FCP: 1.4, CLS: 0.05, INP: N/A';
+const TBT_LINE = 'Module 5 Mobile TBT: 340';
+const OLD_LINE = 'Module 5 Mobile: Performance: 87, LCP: 2.1, FCP: 1.4, CLS: 0.05, INP: 180';
+
+// 1.18.6's strict parser, transcribed VERBATIM. Do not "tidy" this — it is a
+// frozen copy of shipped behaviour and the entire point of AC-11.
+const V1186_STRICT_MOBILE = /^Module\s+5\s+Mobile:\s*Performance:\s*(\d+|N\/A)\s*,\s*LCP:\s*(N\/A|[0-9.]+)\s*,\s*FCP:\s*(N\/A|[0-9.]+)\s*,\s*CLS:\s*(N\/A|[0-9.]+)\s*,\s*INP:\s*(N\/A|[0-9]+)\s*$/i;
+
+// --- AC-11: the rollback pin. ---
+// Derive the line the writer ACTUALLY emits from its template literal, rather
+// than trusting the constant above. A literal-only check would prove the design
+// sound while the code drifted away from it.
+const tmplMatch = adminSrc.match(/`(Module 5 Mobile: Performance:[^`]*)`/);
+assert(tmplMatch, 'Could not find admin-scripts.js\'s Module 5 Mobile template literal.');
+const EMITTED_MAIN = tmplMatch[1]
+  .replace(/\$\{mob\.score\}/g, '87')
+  .replace(/\$\{mobLcp\}/g, '2.1')
+  .replace(/\$\{mobFcp\}/g, '1.4')
+  .replace(/\$\{mobCls\}/g, '0.050')
+  .replace(/\\n$/, '');
+assert(
+  V1186_STRICT_MOBILE.test(EMITTED_MAIN),
+  'The line admin-scripts.js actually emits must match 1.18.6\'s parser. Emitted: ' +
+  JSON.stringify(EMITTED_MAIN)
+);
+const tmplTbt = adminSrc.match(/`(Module 5 Mobile TBT:[^`]*)`/);
+assert(tmplTbt, 'Could not find admin-scripts.js\'s Mobile TBT template literal.');
+const EMITTED_TBT = tmplTbt[1].replace(/\$\{mobTbt\}/g, '340').replace(/\\n$/, '');
+assert(
+  !V1186_STRICT_MOBILE.test(EMITTED_TBT),
+  'The TBT line the writer actually emits must be invisible to 1.18.6\'s parser. ' +
+  'Emitted: ' + JSON.stringify(EMITTED_TBT)
+);
+assert(
+  /^Module\s+5\s+Mobile\s+TBT:\s*340$/.test(EMITTED_TBT),
+  'The emitted TBT line must use the space-separated "Module 5 Mobile TBT:" form. ' +
+  'A colon after the device name would collide with the main-line prefix. Emitted: ' +
+  JSON.stringify(EMITTED_TBT)
+);
+
+assert(
+  V1186_STRICT_MOBILE.test(MAIN_LINE),
+  'The Module 5 line must keep its exact 1.18.6 shape so a downgrade can still read it. ' +
+  'Any TBT token on this line breaks the trailing $ anchor.'
+);
+assert(
+  !V1186_STRICT_MOBILE.test(TBT_LINE),
+  'The TBT line must NOT match 1.18.6\'s Module 5 parser. If it did, an old build would ' +
+  'read it as a metrics line and populate garbage. Keep the space-separated form ' +
+  '"Module 5 Mobile TBT:" — a colon after the device name would collide.'
+);
+const recovered = MAIN_LINE.match(V1186_STRICT_MOBILE);
+assert(
+  recovered[1] === '87' && recovered[4] === '0.05' && recovered[5].toUpperCase() === 'N/A',
+  'After a downgrade 1.18.6 must still recover Performance and CLS from the main line.'
+);
+
+// --- AC-2: the writers. ---
+assert(
+  /Module 5 %s: Performance: %s, LCP: %s, FCP: %s, CLS: %s, INP: %s/.test(schedSrc),
+  'schedule.php must keep the Module 5 sprintf format EXACTLY as 1.18.6 had it. The INP ' +
+  'argument is now always the string N/A, supplied by the $out default.'
+);
+assert(
+  /Module 5 %s TBT: %s/.test(schedSrc),
+  'schedule.php must write the separate TBT line.'
+);
+assert(
+  schedSrc.indexOf("'tbt'  => 'N/A'") !== -1 || schedSrc.indexOf("'tbt' => 'N/A'") !== -1,
+  "schedule.php's $out default must include 'tbt'."
+);
+assert(
+  adminSrc.indexOf('Mobile TBT: ${mobTbt}') !== -1 &&
+  adminSrc.indexOf('Desktop TBT: ${desTbt}') !== -1,
+  'admin-scripts.js must write a separate TBT line for both devices.'
+);
+assert(
+  adminSrc.indexOf('CLS: ${mobCls}, INP: N/A') !== -1 &&
+  adminSrc.indexOf('CLS: ${desCls}, INP: N/A') !== -1,
+  'admin-scripts.js must keep the Module 5 line in its 1.18.6 shape with the INP: N/A shim.'
+);
+
+// AC-6: the value reaching the writer is a bare integer — no comma, no unit —
+// so a 1908.99 ms reading cannot break the grammar.
+assert(
+  inpMsFn('1,910 ms') === '1910' && !/[^0-9]/.test(inpMsFn('1,910 ms')),
+  'The value handed to the log writer must be a bare integer.'
+);
+
+// --- AC-8 (extended): schedule.php runs its OWN acquisition. It must be
+// lab-only too. The original occurrence map missed this second path. ---
+const schedAcqStart = schedSrc.indexOf('$tbt_raw');
+assert(schedAcqStart !== -1, 'schedule.php must acquire TBT into $tbt_raw.');
+const schedAcqEnd = schedSrc.indexOf('Build two log lines', schedAcqStart);
+assert(schedAcqEnd > schedAcqStart, 'Could not bound schedule.php\'s TBT acquisition block.');
+const schedAcq = schedSrc.slice(schedAcqStart, schedAcqEnd);
+assert(
+  schedAcq.indexOf('INTERACTION_TO_NEXT_PAINT') === -1 &&
+  schedAcq.indexOf('loadingExperience') === -1,
+  'schedule.php\'s TBT acquisition must have NO field fallback. Its INP version had a ' +
+  'CrUX stage-3 fallback; TBT has no field counterpart, so it must be deleted.'
+);
+assert(
+  schedAcq.indexOf("'total-blocking-time'") !== -1,
+  'schedule.php must read the total-blocking-time audit.'
+);
+// Check the guard EXPRESSION, not the surrounding prose — the comment above it
+// legitimately contains the string "> 0" while explaining why it is wrong.
+const schedGuard = schedAcq.split(/\r?\n/)
+  .filter(function (l) { return l.indexOf('//') === -1 && l.indexOf('$tbt_raw') !== -1 && l.indexOf('is_numeric') !== -1; })
+  .join(' ');
+assert(schedGuard !== '', 'Could not find schedule.php\'s TBT numeric guard.');
+assert(
+  schedGuard.indexOf('>= 0') !== -1 && !/\$tbt_raw\s*>\s*0(?!=)/.test(schedGuard),
+  'A TBT of 0 ms is a legitimate, common reading (measured on 5 of 8 real pages sampled). ' +
+  'The INP code this replaced guarded with "> 0"; carrying that over would silently ' +
+  'discard a real 0 and report N/A instead. Guard found: ' + schedGuard.trim()
+);
+
+// --- AC-3: every parser gained a TBT branch and still reads legacy lines. ---
+const tbtRe = /^Module\s+5\s+(Mobile|Desktop)\s+TBT:\s*(N\/A|[0-9]+)\s*$/i;
+assert(
+  tbtRe.test(TBT_LINE) && TBT_LINE.match(tbtRe)[2] === '340',
+  'The agreed TBT line shape must parse to its integer value.'
+);
+for (const [file, src] of [['schedule.php', schedSrc], ['compare.php', cmpSrc],
+                           ['conclusion.php', conclSrc], ['admin-scripts.js', adminSrc]]) {
+  assert(
+    /Module\\s\+5\\s\+(?:Mobile|Desktop)\\s\+TBT|Module 5 (?:Mobile|Desktop)\\s\+TBT/.test(src),
+    file + ' must carry a parser branch for the separate TBT line.'
+  );
+  assert(
+    src.indexOf('INP:') !== -1,
+    file + ' must still recognise legacy INP: lines, or historical rows lose LCP/FCP/CLS.'
+  );
+}
+
+// --- The in-memory keys were renamed. ---
+for (const [file, src] of [['schedule.php', schedSrc], ['compare.php', cmpSrc]]) {
+  assert(
+    src.indexOf('m5m_inp') === -1 && src.indexOf('m5d_inp') === -1,
+    file + ' must no longer reference m5m_inp/m5d_inp.'
+  );
+  assert(
+    src.indexOf('m5m_tbt') !== -1 && src.indexOf('m5d_tbt') !== -1,
+    file + ' must use m5m_tbt/m5d_tbt.'
+  );
+}
+
 console.log('OK tbt-harness');

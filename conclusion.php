@@ -539,8 +539,8 @@ defined( 'ABSPATH' ) || exit;
         }
     
         // Module 5: LCP, FCP, CLS, INP
-        $lcp_m = $fcp_m = $cls_m = $inp_m = null;
-        $lcp_d = $fcp_d = $cls_d = $inp_d = null;
+        $lcp_m = $fcp_m = $cls_m = $tbt_m = null;
+        $lcp_d = $fcp_d = $cls_d = $tbt_d = null;
 
         foreach ( $block as $l ) {
             // Accepts numbers or N/A, optional " s", optional CLS/INP tail
@@ -551,7 +551,9 @@ defined( 'ABSPATH' ) || exit;
                 $lcp_m = (strcasecmp($p1[1],'N/A')===0) ? null : (float)$p1[1];
                 $fcp_m = (strcasecmp($p1[2],'N/A')===0) ? null : (float)$p1[2];
                 $cls_m = (isset($p1[3]) && strcasecmp($p1[3],'N/A')!==0) ? (float)$p1[3] : null;
-                $inp_m = (isset($p1[4]) && strcasecmp($p1[4],'N/A')!==0) ? (int)$p1[4]   : null;
+                // $p1[4] is the INP capture — intentionally not consumed. INP is no
+                // longer reported; the token stays only so this line keeps the
+                // 1.18.6 grammar. See decision D7.
             }
 
             // Desktop
@@ -559,7 +561,15 @@ defined( 'ABSPATH' ) || exit;
                 $lcp_d = (strcasecmp($p2[1],'N/A')===0) ? null : (float)$p2[1];
                 $fcp_d = (strcasecmp($p2[2],'N/A')===0) ? null : (float)$p2[2];
                 $cls_d = (isset($p2[3]) && strcasecmp($p2[3],'N/A')!==0) ? (float)$p2[3] : null;
-                $inp_d = (isset($p2[4]) && strcasecmp($p2[4],'N/A')!==0) ? (int)$p2[4]   : null;
+                // $p2[4] is the INP capture — intentionally not consumed. See D7.
+            }
+
+            // Module 5 TBT lines. Their own line, so 1.18.6's parsers skip them.
+            if ( preg_match( '/^Module\s+5\s+Mobile\s+TBT:\s*(N\/A|[\d]+)\s*$/i', $l, $pt ) ) {
+                $tbt_m = (strcasecmp($pt[1],'N/A')!==0) ? (int)$pt[1] : null;
+            }
+            if ( preg_match( '/^Module\s+5\s+Desktop\s+TBT:\s*(N\/A|[\d]+)\s*$/i', $l, $pt ) ) {
+                $tbt_d = (strcasecmp($pt[1],'N/A')!==0) ? (int)$pt[1] : null;
             }
         }
 
@@ -652,8 +662,8 @@ defined( 'ABSPATH' ) || exit;
         // CLS/INP-driven recs
         if ( !is_null($cls_m) && $cls_m > 0.25 ) { $recs[] = 'Reduce mobile layout shifts (CLS).'; }
         if ( !is_null($cls_d) && $cls_d > 0.25 ) { $recs[] = 'Reduce desktop layout shifts (CLS).'; }
-        if ( !is_null($inp_m) && $inp_m > 500 )  { $recs[] = 'Improve mobile interaction latency (INP).'; }
-        if ( !is_null($inp_d) && $inp_d > 500 )  { $recs[] = 'Improve desktop interaction latency (INP).'; }
+        if ( !is_null($tbt_m) && $tbt_m > 500 )  { $recs[] = 'Improve mobile interaction latency (INP).'; }
+        if ( !is_null($tbt_d) && $tbt_d > 500 )  { $recs[] = 'Improve desktop interaction latency (INP).'; }
 
     
         // NEW: Onload assets (recommend when above green thresholds)
@@ -819,14 +829,14 @@ defined( 'ABSPATH' ) || exit;
       $print_m77_card('Mobile', 'lcp', $lcp_m);
       $print_m77_card('Mobile', 'fcp', $fcp_m);
       $print_m77_card('Mobile', 'cls', $cls_m);
-      $print_m77_card('Mobile', 'inp', $inp_m);
+      $print_m77_card('Mobile', 'inp', $tbt_m);
     
       // ── Desktop ──────────────────────────────────────────────
       echo '<h4>Desktop:</h4>';
       $print_m77_card('Desktop', 'lcp', $lcp_d);
       $print_m77_card('Desktop', 'fcp', $fcp_d);
       $print_m77_card('Desktop', 'cls', $cls_d);
-      $print_m77_card('Desktop', 'inp', $inp_d);
+      $print_m77_card('Desktop', 'inp', $tbt_d);
     
     echo '</div>'; //end of 7.7.
 

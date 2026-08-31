@@ -2054,16 +2054,23 @@ function wpsa_updateLoadBtnState() {
           var lcp   = m[2];                  // as logged (no unit). Add " s" later where needed.
           var fcp   = m[3];
           var cls   = m[4] || 'N/A';
-          var inp   = m[5] ? (m[5] === 'N/A' ? 'N/A' : (m[5] + ' ms')) : 'N/A';
-        
-          return { score: score, lcp: lcp, fcp: fcp, cls: cls, inp: inp, diagnostics: [] };
+          // m[5] is the INP capture — intentionally not consumed. INP is no longer
+          // reported; the token stays only so this line keeps the 1.18.6 grammar.
+          // TBT comes from its own line, read below. See decision D7.
+          var tbtRe = which === 'mobile'
+            ? /^Module 5 Mobile\s+TBT:\s*(N\/A|[0-9]+)\s*$/i
+            : /^Module 5 Desktop\s+TBT:\s*(N\/A|[0-9]+)\s*$/i;
+          var tm  = find(tbtRe);
+          var tbt = (tm && tm[1] && tm[1] !== 'N/A') ? (tm[1] + ' ms') : 'N/A';
+
+          return { score: score, lcp: lcp, fcp: fcp, cls: cls, tbt: tbt, diagnostics: [] };
         }
-        
+
         var m5m = pullM5('mobile'), m5d = pullM5('desktop');
         if (m5m || m5d) {
           window._wpsa_perf = window._wpsa_perf || {};
-          window._wpsa_perf.mobile  = m5m || { score:'N/A', lcp:'N/A', fcp:'N/A', cls:'N/A', inp:'N/A', diagnostics:[] };
-          window._wpsa_perf.desktop = m5d || { score:'N/A', lcp:'N/A', fcp:'N/A', cls:'N/A', inp:'N/A', diagnostics:[] };
+          window._wpsa_perf.mobile  = m5m || { score:'N/A', lcp:'N/A', fcp:'N/A', cls:'N/A', tbt:'N/A', diagnostics:[] };
+          window._wpsa_perf.desktop = m5d || { score:'N/A', lcp:'N/A', fcp:'N/A', cls:'N/A', tbt:'N/A', diagnostics:[] };
           window._wpsa_perf.logged  = true;
 
           // Start from a clean preview; a separate helper will hydrate from psi-diag-ss.log
@@ -2607,10 +2614,10 @@ function wpsa_updateLoadBtnState() {
           var des = window._wpsa_perf.desktop || {};
 
           var mobLcp = numOrNA(mob.lcp), mobFcp = numOrNA(mob.fcp),
-              mobCls = numOrNA(mob.cls), mobInp = inpMs(mob.inp);
+              mobCls = numOrNA(mob.cls), mobTbt = inpMs(mob.tbt);
 
           var desLcp = numOrNA(des.lcp), desFcp = numOrNA(des.fcp),
-              desCls = numOrNA(des.cls), desInp = inpMs(des.inp);
+              desCls = numOrNA(des.cls), desTbt = inpMs(des.tbt);
 
         var $meta     = $('#wpsa-run-meta');
         var testNo    = parseInt($meta.data('test-no') || 0, 10) || 0;
@@ -2624,9 +2631,14 @@ function wpsa_updateLoadBtnState() {
           test_no:     testNo,
           tested_url:  testedUrl,
         
-          // unchanged payload
-          mobile:  `Module 5 Mobile: Performance: ${mob.score}, LCP: ${mobLcp}, FCP: ${mobFcp}, CLS: ${mobCls}, INP: ${mobInp}\n`,
-          desktop: `Module 5 Desktop: Performance: ${des.score}, LCP: ${desLcp}, FCP: ${desFcp}, CLS: ${desCls}, INP: ${desInp}\n`
+          // The Module 5 line's grammar is frozen at the 1.18.6 shape so a
+          // downgrade can still parse it; INP: N/A is a compatibility placeholder,
+          // not a measurement. TBT rides on its own line, which older parsers
+          // skip harmlessly. See tasks/2026-08-31-inp-to-tbt-design.md, D7.
+          mobile:  `Module 5 Mobile: Performance: ${mob.score}, LCP: ${mobLcp}, FCP: ${mobFcp}, CLS: ${mobCls}, INP: N/A\n`
+                 + `Module 5 Mobile TBT: ${mobTbt}\n`,
+          desktop: `Module 5 Desktop: Performance: ${des.score}, LCP: ${desLcp}, FCP: ${desFcp}, CLS: ${desCls}, INP: N/A\n`
+                 + `Module 5 Desktop TBT: ${desTbt}\n`
         });
 
         })();
