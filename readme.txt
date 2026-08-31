@@ -147,134 +147,6 @@ The server will return a “quota exceeded” error. You can either wait until m
 = 1.18.5 =
 * Replaced Perfmatters mentions in the generated PDF report with AI Assets Scanner and linked the AI Assets Scanner product page.
 
-= 1.06 =
-* Bumped version for avoiding trademark issues for WordPress.org release
-
-= 1.07 =
-* Slug changed, readme external service addition, and minor fixes on helpers/modules.php files
-
-= 1.08 =
-* Daily limit counting reworked to avoid double reduction
-
-= 1.09 =
-* Left and right sidebars, license outline
-
-= 1.10 =
-* More robust workers code
-* PDF reporting implemented
-* Minor tweaks and style changes
-
-= 1.11 =
-* Added another worker and API key
-* Minor bug fixes
-
-= 1.12 = 
-* Added premium perks and more workers
-
-= 1.13 =
-* Fixed bug where modules 2 and 5 tests were not finishing properly on the slower websites
-
-= 1.14 =
-* Added Top 10 autoloaded options by size on module 3
-* Added branding options for the PDF report on Agency plan (Header, and optional CTA box on the end of the file)
-* Fixed minor bugs
-
-= 1.15 =
-* Added point 4.5 to module 3 (Number of active plugins, PHP version, and DB server version)
-* Hooked it up in a PDF report
-* Worked on the CF workers for the different server region collection
-
-= 1.15.1 =
-* Minor visual change on module 1 (notice on green only)
-
-= 1.16 =
-* Compare Results functionality implemented
-* PDF report bug with Persistent object cache not showing as present on some texts fixed 
-
-= 1.16.1 =
-* Reinforced N/A not 0 on the Compare results
-* Fixed a bug where each test counted as two on the daily limit
-
-= 1.16.2 =
-* Introduced Onload JS and CSS functionality
-* Few other minor tweaks
-
-= 1.16.3 =
-* Introduced Load test by # functionality
-* Compare Results charts rearranged
-* Diagnostics section enlarged to max top 10
-* PDF report tweaked
-* A few other minor tweaks
-
-= 1.16.4 =
-* Removed external notices from the main plugin page (CSS)
-* Added Insights to the PSI modules
-* Tweaked PDF report styling
-* Reorganized the Compare two tests chart-card
-
-= 1.16.5 =
-* Added CLS and INP
-* Tweaked the 7. Conclusion section on the frontend
-* Tweaked PDF report
-
-= 1.16.6 =
-* Module 6 Recommendations section icons fixed
-* Tweaked PDF report page 6
-* Added functionality to prevent running a new test before the existing one finishes
-
-= 1.17 =
-* Schedule tests functionality introduced
-* Get test results by email
-* Compare results filtering reworked for S test
-
-= 1.17.1 =
-* Added 'S' badge to the #wpsa-tested-url on loading results from Scheduled tests
-* Added the link from the Scheduled tests to the Compare Results section
-
-= 1.17.2 =
-* Fixed a bug in module 5 where Diagnostics section was not loading
-* Minor styling improvements
-
-= 1.17.3 =
-* Fixed a bug in module 5 where Diagnostics section style was off
-* Added DB size to the tested metrics
-* Another Generate PDF report button on the main screen
-
-= 1.17.5 =
-* Module 3  — added images (mobile and desktop) of the tested URL
-* Redesigned scheduled test email, and added diagnostics for module 3 on it
-* Changed the modules order
-* PDF report tweaked for screenshot images
-
-= 1.17.6 =
-* Added a Speed Analyzer column to Posts and Pages list, showing the latest performance score, CWV metrics, and direct links to re-test or open reports.
-* Minor tweaks
-
-= 1.17.7 =
-* Added core web vitals (CWV) test metrics
-* 100+ tests message
-* Schedule tests "Add another" button fixed
-
-= 1.17.8 =
-* fixed CWV on main test screen 
-
-= 1.17.9 =
-* Added CWV status to the pages/posts
-* Fixed a bug with CWV scope being returned as URL, even on scope: origin
-* Added CWV status to the PDF report
-* Schedule tests Alert emails functions (regression + absoulute) added
-
-= 1.18 =
-* Added the response headers functionality on the module 1 dropdown section
-* license manager reworked
-* Load test # functionality fixed a bug where N/A values in module 2 loaded former test data
-
-= 1.18.1 =
-* Added wpsa-admin-cwv dahicons instead of text
-* Removed wpsa_speed column-wpsa_speed from the product pages
-* Added the Code Unloader reference
-* Icon changed
-
 = 1.18.4 =
 * Added a persistent "Place sidebars on top" admin toggle for surfacing sidebar cards above report modules when needed.
 
@@ -285,3 +157,131 @@ The server will return a “quota exceeded” error. You can either wait until m
 = 1.18.2 =
 * Added Code Unloader and AI Assets Scanner product cards below the admin ratings and reviews area.
 * Updated tested WordPress compatibility to 7.0 and bumped plugin version metadata.
+
+= 1.18.1 =
+* Added wpsa-admin-cwv dahicons instead of text
+* Removed wpsa_speed column-wpsa_speed from the product pages
+* Added the Code Unloader reference
+* Icon changed
+
+= 1.18 =
+* Added the response headers functionality on the module 1 dropdown section
+* license manager reworked
+* Load test # functionality fixed a bug where N/A values in module 2 loaded former test data
+
+= 1.17.9 =
+* Added CWV status to the pages/posts
+* Fixed a bug with CWV scope being returned as URL, even on scope: origin
+* Added CWV status to the PDF report
+* Schedule tests Alert emails functions (regression + absoulute) added
+
+= 1.17.8 =
+* fixed CWV on main test screen 
+
+= 1.17.7 =
+* Added core web vitals (CWV) test metrics
+* 100+ tests message
+* Schedule tests "Add another" button fixed
+
+= 1.17.6 =
+* Added a Speed Analyzer column to Posts and Pages list, showing the latest performance score, CWV metrics, and direct links to re-test or open reports.
+* Minor tweaks
+
+= 1.17.5 =
+* Module 3  — added images (mobile and desktop) of the tested URL
+* Redesigned scheduled test email, and added diagnostics for module 3 on it
+* Changed the modules order
+* PDF report tweaked for screenshot images
+
+= 1.17.3 =
+* Fixed a bug in module 5 where Diagnostics section style was off
+* Added DB size to the tested metrics
+* Another Generate PDF report button on the main screen
+
+= 1.17.2 =
+* Fixed a bug in module 5 where Diagnostics section was not loading
+* Minor styling improvements
+
+= 1.17.1 =
+* Added 'S' badge to the #wpsa-tested-url on loading results from Scheduled tests
+* Added the link from the Scheduled tests to the Compare Results section
+
+= 1.17 =
+* Schedule tests functionality introduced
+* Get test results by email
+* Compare results filtering reworked for S test
+
+= 1.16.6 =
+* Module 6 Recommendations section icons fixed
+* Tweaked PDF report page 6
+* Added functionality to prevent running a new test before the existing one finishes
+
+= 1.16.5 =
+* Added CLS and INP
+* Tweaked the 7. Conclusion section on the frontend
+* Tweaked PDF report
+
+= 1.16.4 =
+* Removed external notices from the main plugin page (CSS)
+* Added Insights to the PSI modules
+* Tweaked PDF report styling
+* Reorganized the Compare two tests chart-card
+
+= 1.16.3 =
+* Introduced Load test by # functionality
+* Compare Results charts rearranged
+* Diagnostics section enlarged to max top 10
+* PDF report tweaked
+* A few other minor tweaks
+
+= 1.16.2 =
+* Introduced Onload JS and CSS functionality
+* Few other minor tweaks
+
+= 1.16.1 =
+* Reinforced N/A not 0 on the Compare results
+* Fixed a bug where each test counted as two on the daily limit
+
+= 1.16 =
+* Compare Results functionality implemented
+* PDF report bug with Persistent object cache not showing as present on some texts fixed 
+
+= 1.15.1 =
+* Minor visual change on module 1 (notice on green only)
+
+= 1.15 =
+* Added point 4.5 to module 3 (Number of active plugins, PHP version, and DB server version)
+* Hooked it up in a PDF report
+* Worked on the CF workers for the different server region collection
+
+= 1.14 =
+* Added Top 10 autoloaded options by size on module 3
+* Added branding options for the PDF report on Agency plan (Header, and optional CTA box on the end of the file)
+* Fixed minor bugs
+
+= 1.13 =
+* Fixed bug where modules 2 and 5 tests were not finishing properly on the slower websites
+
+= 1.12 =
+* Added premium perks and more workers
+
+= 1.11 =
+* Added another worker and API key
+* Minor bug fixes
+
+= 1.10 =
+* More robust workers code
+* PDF reporting implemented
+* Minor tweaks and style changes
+
+= 1.09 =
+* Left and right sidebars, license outline
+
+= 1.08 =
+* Daily limit counting reworked to avoid double reduction
+
+= 1.07 =
+* Slug changed, readme external service addition, and minor fixes on helpers/modules.php files
+
+= 1.06 =
+* Bumped version for avoiding trademark issues for WordPress.org release
