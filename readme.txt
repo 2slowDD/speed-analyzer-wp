@@ -1,288 +1,173 @@
-=== Speed Analyzer ===
+=== Speed Analyzer – WordPress Speed Test & Performance Audit ===
 Contributors: dalibord
-Donate link: https://wpservice.pro/donate
-Tags: performance, speed, ttfb, pagespeed
+Donate link: https://wpservice.pro/donate/
+Tags: speed test, pagespeed insights, core web vitals, performance audit, ttfb
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.0
 Stable tag: 1.19.0
-License:         GPL v3 or later
-License URI:     https://www.gnu.org/licenses/gpl-3.0.txt
+License: GPLv3 or later
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Test and audit your website's speed directly inside the WordPress dashboard. TTFB, Request Count, Google PSI LCP/FCP, Autoload Options, and more.
+Run WordPress speed tests from wp-admin. Check PageSpeed, Core Web Vitals, TTFB, page weight, database health, and create PDF reports.
 
 == Description ==
 
-[youtube https://youtu.be/B5C8iZISJoA]
+Speed Analyzer is a WordPress speed test and performance audit plugin that runs from wp-admin. It combines Google PageSpeed Insights data with WordPress-specific checks that browser-based testing tools cannot access, including autoloaded options, database size, active plugins, persistent object cache, and server information.
+
+Use one dashboard to identify whether a performance bottleneck comes from the server, frontend assets, Core Web Vitals, or the WordPress database. Save results, compare before-and-after tests, schedule recurring checks, receive reports by email, and generate color-coded PDF reports.
+
+WordPress.org reviewers highlight having PageSpeed data inside WP Admin and getting clearer direction about what to optimize.
+
+Read the reviews:
+[https://wordpress.org/support/plugin/speed-analyzer/reviews/](https://wordpress.org/support/plugin/speed-analyzer/reviews/)
+
+= What Speed Analyzer checks =
+
+* Server Time to First Byte (TTFB), cache status, and response headers
+* Page requests, total page size, and loaded CSS and JavaScript files
+* Google PageSpeed Insights performance score and Lighthouse diagnostics
+* Lab metrics including LCP, FCP, CLS, and Total Blocking Time (TBT)
+* Available Core Web Vitals field data, including LCP, CLS, and INP
+* Autoloaded options size with a list of the largest options
+* Persistent object cache status
+* WordPress database size, PHP version, database server version, and active plugins
+
+= Reports, comparisons, and monitoring =
+
+* Compare two saved tests to measure the effect of optimization work
+* Schedule recurring tests and receive the results by email
+* Configure alerts for performance regressions or metric thresholds
+* Generate downloadable, color-coded PDF reports with explanations and recommendations
+* Add agency branding to PDF reports on the Agency plan
+* View the latest performance score and Core Web Vitals from the Posts and Pages screens
+
+Speed Analyzer is a diagnostic and reporting tool. It identifies performance problems and recommends next steps, but it does not automatically apply caching, CSS, JavaScript, image, or database optimizations.
+
+[youtube https://www.youtube.com/watch?v=B5C8iZISJoA]
 
 Official plugin homepage:
 [https://wpservice.pro/our-products/speed-analyzer-wp-plugin/](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/)
 
-Speed Analyzer gives you an in-dashboard speed audit of your website and more:
+= Free and paid usage limits =
 
-1. **Server TTFB and cache status**  
-2. **Page asset summary: Requests, Page Size, Onloads (JS and CSS)**  
-3. **Performance & diagnostics: PageSpeed Insights (LCP, FCP, CLS and TBT)/CWV**
-4. **Autoloaded Options size and list** 
-5. **Persistent Object Cache**  
-6. **Various other information: Active plugins # count/list, PHP version, DB server version and size**
-7. **Summary & Recommendations**
-8. **Conclusion & Pro-service offer**
-9. **A complete PDF report with color coding, explanations and links to the guides**
-10. **Deep Compare Results functionality**
-11. **Schedule tests and receive results via email**
-12. **Brending option for agencies**
+The free tier includes up to 10 tests per day and one PDF report per day. Higher limits are available through Pro, Business, and Agency plans. Your current tier and remaining usage are shown under **Speed Analyzer > License**.
 
-It's all there after one click of the button. Perfect for users who want to check their website speed or for agencies looking to automate their speed reporting.
-In the plugins compare results section, you can inspect and compare previous results, and you can schedule tests with the ability to get the results sent to an email of your choosing.
-PDF reporting (with color coding, explanations, and links to the guides) is available from version 1.10.
-Most of the frontend assets have dropdown lists and copy/paste capability, and all of it is available for free.
+View current limits and pricing:
+[https://wpservice.pro/our-products/speed-analyzer-wp-plugin/#licenses](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/#licenses)
 
-It uses Cloudflare Workers and Google PSI API under the hood (your data is NOT stored on any external site). A 10-tests/day fair-use limit is enforced on the current version. 
-== Serviceware Model ==
+= Included third-party library =
 
-Speed Analyzer is an open-source WordPress plugin that acts as a thin client for our hosted analysis service.  
-All quota- and tier-enforcement happens on our CF Worker/Google PSI proxy.  
+* `assets/js/html2pdf.bundle.min.js` — bundled html2pdf.js v0.10.3 for browser-based PDF generation
+* Source: [https://github.com/eKoopmans/html2pdf.js](https://github.com/eKoopmans/html2pdf.js)
 
+== External Services ==
+
+Speed Analyzer performs WordPress-specific database and server checks locally. When you start a speed test, or when a scheduled test runs, selected modules connect to a managed WPservice analysis service and Google PageSpeed Insights.
+
+= WPservice hosted analysis service =
+
+Endpoint:
+[https://globalwpspeed.dalibord79.workers.dev/](https://globalwpspeed.dalibord79.workers.dev/)
+
+The hosted service is used for:
+
+* Measuring TTFB from a Cloudflare edge location
+* Fetching page asset and PageSpeed data
+* Proxying PageSpeed requests to Google
+* Enforcing daily usage and PDF-report limits
+
+For TTFB tests, the tested URL is sent to the service. For PageSpeed tests, the tested URL and selected mobile or desktop strategy are sent. The service returns the test data to the plugin. No personal information is intentionally collected, and test results are not stored on the WPservice website.
+
+Privacy policy:
+[https://wpservice.pro/privacy-policy/](https://wpservice.pro/privacy-policy/)
+
+Service terms:
+[https://wpservice.pro/terms-and-conditions/](https://wpservice.pro/terms-and-conditions/)
+
+= Google PageSpeed Insights =
+
+The hosted WPservice endpoint forwards the tested URL and mobile or desktop strategy to the Google PageSpeed Insights API. Google returns PageSpeed, Lighthouse, diagnostics, and available Core Web Vitals field data.
+
+Google API Terms of Service:
+[https://developers.google.com/terms](https://developers.google.com/terms)
 
 == Installation ==
 
-1. Install/upload the `speed-analyzer` folder to `/wp-content/plugins/`.  
-2. Activate the plugin through the “Plugins” menu in WordPress.  
-3. Go to **Tools → Speed Analyzer** to access and run your audits.  
-4. After the tests are complete, a Generate PDF report button will be available.
-5. (Optional) Upgrade at **Speed Analyzer → License** for higher quotas.
+1. In WordPress, go to **Plugins > Add New Plugin** and search for **Speed Analyzer**.
+2. Click **Install Now**, then **Activate**.
+3. Go to **Tools > Speed Analyzer**.
+4. Enter or confirm the URL and run the mobile or desktop speed test.
+5. Review the results and recommendations, or generate a PDF report.
+6. Optionally save comparisons, schedule recurring tests, or configure alerts.
 
-All PHP and JavaScript code is included in this plugin. No features are disabled locally—every quota, gating, and license-check is performed on our remote service.
-
-== Included Files ==
-- **assets/js/html2pdf.bundle.min.js**  
-  Bundled copy of html2pdf.js (v0.10.3) for offline PDF generation.
-  Source: https://github.com/eKoopmans/html2pdf.js
-
-== External Services ==
-Speed Analyzer doesn’t run any tests locally — every audit is performed by our managed service at https://globalwpspeed.dalibord79.workers.dev.
-
-1. **Google PageSpeed Insights API**  
-    • Modules 2 and 3 of the plugin ultimately fetch (via our proxy worker) real‐time LCP/FCP/CLS/TBT diagnostic data from Google’s PSI service.
-    • Instead of hitting www.googleapis.com directly, the plugin sends your test URL + strategy to Cloudflare Worker, which then forwards the request to Google PSI on your behalf.
-    – Terms of Service: https://developers.google.com/terms
-   
-
-2. **Cloudflare Workers HTTP Probe**  
-    – Module 1 (Server TTFB) calls https://globalwpspeed.dalibord79.workers.dev/ to measure Time-to-First-Byte from a global edge.
-    – Modules 2 and 3 (Page asset summary and Diagnostics) now send psi_url to https://globalwpspeed.dalibord79.workers.dev/psi. That Worker then forwards the same parameters to Google PSI and returns the JSON back to the plugin.
-    • What data is sent and when:
-    – For TTFB: just the raw URL—no other user data.
-    – For PSI: the URL you enter plus “mobile” or “desktop” strategy.
-    
-    No personal information is collected or stored.
-    • Provider & policies:
-    Hosted by WPservice (Dalibor Druzinec).
-    – Privacy Policy: https://wpservice.pro/privacy-policy
-    – No PII is collected; only your tested URL and strategy are transmitted.
-
-3. **Usage Tiers**
-   These are the **service-enforced** daily limits provided by our hosted service:
-   * Free:Full capability up to 10 tests/day + 1 PDF report/day 
-   * Pro: 30 tests/day + 3 PDF reports/day 
-   * Business: 100 tests/day + 10 PDF reports/day 
-   * Agency: 700 tests/day + 100 PDF reports/day   
-
-   You can upgrade or view full options and pricing at https://wpservice.pro/our-products/speed-analyzer-wp-plugin/#licenses
-   Furthermore, you can see your current tier on WordPress dashboard under **Speed Analyzer → License**.
-    
-    Service Terms: https://wpservice.pro/terms-and-conditions/
+No account or API key is required for the free tier.
 
 == Frequently Asked Questions ==
 
-= Why is there a daily limit? =  
-Because we leverage external APIs with shared quotas. You get 10 free tests/day; more or unlimited tests require a premium license.  
+= Does Speed Analyzer make my WordPress website faster? =
 
-= Will you collect any of my data? =  
-No—everything runs on your server, and no results are stored on our site. 
+Not automatically. Speed Analyzer measures performance, identifies likely bottlenecks, and explains what needs attention. You can use its results to guide manual optimization or confirm the effect of changes made by another plugin or developer.
 
-= What happens when I hit my daily test limit?  =
-The server will return a “quota exceeded” error. You can either wait until midnight UTC or upgrade your tier to continue testing immediately.
+= How is it different from running PageSpeed Insights directly? =
+
+Speed Analyzer brings PageSpeed and Core Web Vitals data into wp-admin and combines it with WordPress-only information such as autoloaded options, database size, persistent object cache, active plugins, and server details. It also adds saved comparisons, scheduled tests, alerts, email results, and PDF reporting.
+
+= Is the free version enough to test my website? =
+
+Yes for ordinary use. The free tier includes up to 10 tests and one PDF report per day. Higher-volume users and agencies can choose a paid tier.
+
+= Why is there a daily limit? =
+
+The remote tests use hosted infrastructure and external API quotas. Limits reset at midnight UTC. When the limit is reached, wait for the reset or upgrade to a tier with a higher allowance.
+
+= What is sent to external services? =
+
+The tested public URL is sent for TTFB checks. PageSpeed tests also send the selected mobile or desktop strategy. WordPress-specific information such as your autoloaded-options list, active-plugins list, and database details is processed locally and is not needed by the remote PageSpeed or TTFB tests.
+
+= Where are my saved test results stored? =
+
+Saved comparison and scheduled-test data is stored on your WordPress website. WPservice does not store your completed report data on its website.
+
+= Why can two PageSpeed tests return different scores? =
+
+PageSpeed results can vary because server response time, network conditions, cache state, third-party scripts, and the tested environment change between runs. Compare several tests rather than treating one score as permanent.
+
+= Why does Speed Analyzer show TBT and INP? =
+
+Total Blocking Time is a Lighthouse lab metric used in PageSpeed performance tests. Interaction to Next Paint is a Core Web Vital based on real-user field data. They measure related but different aspects of responsiveness and are not interchangeable.
 
 == Screenshots ==
 
-1. Dashboard view – Server performance and page asset summary  
-2. Page asset summary with the onload CSS list open and ready to copy
-3. Performance and Diagnostics – LCP/FCP/CLS/TBT   
-4. Mobile/Desktop results sorting - Mobile and desktop test functionality
-5. Autoloaded options size (with top 10 list available), persistent object cache, active plugins, and other server data
-6. Test conclusion with recommendations
-7. Compare Results -> A/B testing
-8. Schedule tests functionality
-9. PDF report - page 1
-10. PDF report - page 3
-11. PDF report - page 4
-12. Email report received
-13. Editor SA metrics
- 
+1. Run a WordPress speed audit from wp-admin and review server TTFB and page asset totals
+2. Inspect loaded CSS files and copy asset data for troubleshooting
+3. Review PageSpeed lab metrics and diagnostics, including LCP, FCP, CLS, and TBT
+4. Compare mobile and desktop PageSpeed results
+5. Check autoloaded options, persistent object cache, active plugins, PHP, database server, and database size
+6. See color-coded findings, explanations, and recommended next steps
+7. Compare two saved tests to measure before-and-after performance changes
+8. Schedule recurring tests and configure performance alerts
+9. Generated PDF speed report with its summary and tested URL
+10. PDF report showing measured performance results and explanations
+11. PDF report with recommendations and supporting details
+12. Scheduled speed-test results delivered by email
+13. Latest performance score and Core Web Vitals shown in the Posts and Pages lists
+
 == Changelog ==
 
 = 1.19.0 =
-* Total Blocking Time (TBT) replaces INP in all lab measurements, matching what Google PageSpeed Insights now reports.
-* TBT uses Lighthouse's per-device thresholds: 200/600 ms on mobile, 150/350 ms on desktop.
-* The Core Web Vitals (field) assessment continues to report INP, which is the Core Web Vital measured from real users. TBT has no field equivalent.
-* Scheduled alerts can now watch TBT. An existing INP alert keeps working and is migrated automatically.
-* Fixed: on the Compare Results table, tests run with 1.19.0 showed N/A for LCP, FCP, CLS and TBT. Re-run a test to record it correctly; rows already stored keep the old values.
-* Fixed: re-running a test no longer leaves a stale Total Blocking Time value behind for that test.
-* Fixed: the note about pre-1.19 interaction data now lines up with the results table.
-* Fixed: the Conclusion's Performance & Diagnostics section showed no advice text under Total Blocking Time.
-* Fixed: the Core Web Vitals (field) block showed '--' for every metric on pages that did have real-user data. Where Google publishes LCP, CLS and load timings for a page but not enough interaction data for INP, the overall assessment cannot be calculated - but the individual measurements are real and are now shown. The assessment itself still reads N/A in that case.
-* Fixed: the Core Web Vitals column on the Posts and Pages lists stayed blank for pages that were passing.
-* Fixed: values above 1000 ms were misread when PageSpeed Insights formatted them with a thousands separator.
-* Fixed: a TBT of exactly 0 ms is now recorded instead of showing N/A.
-* Tests recorded before 1.19.0 keep their INP values in the raw log; they are not shown in the TBT column because the metrics are not comparable.
+* Total Blocking Time (TBT) replaces INP in lab measurements, matching Google PageSpeed Insights.
+* TBT uses Lighthouse's device-specific thresholds: 200/600 ms on mobile and 150/350 ms on desktop.
+* Core Web Vitals field data continues to report INP when sufficient real-user data is available.
+* Scheduled alerts can now monitor TBT. Existing INP alerts are migrated automatically.
+* Fixed missing or stale metrics in Compare Results, Core Web Vitals fields, and Posts and Pages columns.
+* Fixed PageSpeed values above 1,000 ms and TBT results of exactly 0 ms being misread.
 
 = 1.18.6 =
-* Coding-standards and security pass: every Plugin Check error resolved across the plugin (output escaping, input sanitization and unslashing, prepared SQL, translator comments, direct file access protection).
-* Chart.js is now bundled with the plugin instead of being loaded from a third-party CDN.
-* Debug logging is now gated behind WP_DEBUG and WP_DEBUG_LOG, so production sites no longer collect plugin log noise on every cron tick.
-* Generating a PDF report no longer makes the browser show "Page Unresponsive": the build runs in stages with progress feedback and a smoother activity indicator.
+* Resolved Plugin Check coding-standard and security findings.
+* Bundled Chart.js locally instead of loading it from a third-party CDN.
+* Limited debug logging to sites with `WP_DEBUG` and `WP_DEBUG_LOG` enabled.
+* Improved PDF generation with staged processing and progress feedback.
 * Tested up to WordPress 7.1.
 
-= 1.18.5 =
-* Replaced Perfmatters mentions in the generated PDF report with AI Assets Scanner and linked the AI Assets Scanner product page.
-
-= 1.18.4 =
-* Added a persistent "Place sidebars on top" admin toggle for surfacing sidebar cards above report modules when needed.
-
-= 1.18.3 =
-* Added a progress notice with an animated activity indicator while the PDF report is being built before the browser save prompt appears.
-* Fixed PDF quota accounting so server-side PDF render failures do not consume the daily PDF limit.
-
-= 1.18.2 =
-* Added Code Unloader and AI Assets Scanner product cards below the admin ratings and reviews area.
-* Updated tested WordPress compatibility to 7.0 and bumped plugin version metadata.
-
-= 1.18.1 =
-* Added wpsa-admin-cwv dahicons instead of text
-* Removed wpsa_speed column-wpsa_speed from the product pages
-* Added the Code Unloader reference
-* Icon changed
-
-= 1.18 =
-* Added the response headers functionality on the module 1 dropdown section
-* license manager reworked
-* Load test # functionality fixed a bug where N/A values in module 2 loaded former test data
-
-= 1.17.9 =
-* Added CWV status to the pages/posts
-* Fixed a bug with CWV scope being returned as URL, even on scope: origin
-* Added CWV status to the PDF report
-* Schedule tests Alert emails functions (regression + absoulute) added
-
-= 1.17.8 =
-* fixed CWV on main test screen 
-
-= 1.17.7 =
-* Added core web vitals (CWV) test metrics
-* 100+ tests message
-* Schedule tests "Add another" button fixed
-
-= 1.17.6 =
-* Added a Speed Analyzer column to Posts and Pages list, showing the latest performance score, CWV metrics, and direct links to re-test or open reports.
-* Minor tweaks
-
-= 1.17.5 =
-* Module 3  — added images (mobile and desktop) of the tested URL
-* Redesigned scheduled test email, and added diagnostics for module 3 on it
-* Changed the modules order
-* PDF report tweaked for screenshot images
-
-= 1.17.3 =
-* Fixed a bug in module 5 where Diagnostics section style was off
-* Added DB size to the tested metrics
-* Another Generate PDF report button on the main screen
-
-= 1.17.2 =
-* Fixed a bug in module 5 where Diagnostics section was not loading
-* Minor styling improvements
-
-= 1.17.1 =
-* Added 'S' badge to the #wpsa-tested-url on loading results from Scheduled tests
-* Added the link from the Scheduled tests to the Compare Results section
-
-= 1.17 =
-* Schedule tests functionality introduced
-* Get test results by email
-* Compare results filtering reworked for S test
-
-= 1.16.6 =
-* Module 6 Recommendations section icons fixed
-* Tweaked PDF report page 6
-* Added functionality to prevent running a new test before the existing one finishes
-
-= 1.16.5 =
-* Added CLS and INP
-* Tweaked the 7. Conclusion section on the frontend
-* Tweaked PDF report
-
-= 1.16.4 =
-* Removed external notices from the main plugin page (CSS)
-* Added Insights to the PSI modules
-* Tweaked PDF report styling
-* Reorganized the Compare two tests chart-card
-
-= 1.16.3 =
-* Introduced Load test by # functionality
-* Compare Results charts rearranged
-* Diagnostics section enlarged to max top 10
-* PDF report tweaked
-* A few other minor tweaks
-
-= 1.16.2 =
-* Introduced Onload JS and CSS functionality
-* Few other minor tweaks
-
-= 1.16.1 =
-* Reinforced N/A not 0 on the Compare results
-* Fixed a bug where each test counted as two on the daily limit
-
-= 1.16 =
-* Compare Results functionality implemented
-* PDF report bug with Persistent object cache not showing as present on some texts fixed 
-
-= 1.15.1 =
-* Minor visual change on module 1 (notice on green only)
-
-= 1.15 =
-* Added point 4.5 to module 3 (Number of active plugins, PHP version, and DB server version)
-* Hooked it up in a PDF report
-* Worked on the CF workers for the different server region collection
-
-= 1.14 =
-* Added Top 10 autoloaded options by size on module 3
-* Added branding options for the PDF report on Agency plan (Header, and optional CTA box on the end of the file)
-* Fixed minor bugs
-
-= 1.13 =
-* Fixed bug where modules 2 and 5 tests were not finishing properly on the slower websites
-
-= 1.12 =
-* Added premium perks and more workers
-
-= 1.11 =
-* Added another worker and API key
-* Minor bug fixes
-
-= 1.10 =
-* More robust workers code
-* PDF reporting implemented
-* Minor tweaks and style changes
-
-= 1.09 =
-* Left and right sidebars, license outline
-
-= 1.08 =
-* Daily limit counting reworked to avoid double reduction
-
-= 1.07 =
-* Slug changed, readme external service addition, and minor fixes on helpers/modules.php files
-
-= 1.06 =
-* Bumped version for avoiding trademark issues for WordPress.org release
+For the complete release history, see `changelog.txt` in the plugin folder.

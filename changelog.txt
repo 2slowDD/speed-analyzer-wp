@@ -1,0 +1,155 @@
+=== Speed Analyzer – Full Changelog ===
+
+= 1.19.0 =
+* Total Blocking Time (TBT) replaces INP in all lab measurements, matching what Google PageSpeed Insights now reports.
+* TBT uses Lighthouse's per-device thresholds: 200/600 ms on mobile, 150/350 ms on desktop.
+* The Core Web Vitals field assessment continues to report INP, which is measured from real users. TBT has no field equivalent.
+* Scheduled alerts can now watch TBT. Existing INP alerts keep working and are migrated automatically.
+* Fixed new Compare Results tests showing unavailable values for LCP, FCP, CLS, and TBT.
+* Fixed stale Total Blocking Time values when re-running a test.
+* Fixed the note about pre-1.19 interaction data alignment.
+* Fixed individual Core Web Vitals field metrics not appearing when the overall assessment could not be calculated.
+* Fixed the Core Web Vitals column remaining blank for passing pages and posts.
+* Fixed values above 1,000 ms being misread when PageSpeed Insights used a thousands separator.
+* Fixed a TBT value of exactly 0 ms showing as unavailable.
+* Tests recorded before 1.19.0 retain their raw INP values, but they are not shown as TBT because the metrics are not comparable.
+
+= 1.18.6 =
+* Resolved Plugin Check coding-standard and security findings across the plugin.
+* Bundled Chart.js locally instead of loading it from a third-party CDN.
+* Limited debug logging to sites with `WP_DEBUG` and `WP_DEBUG_LOG` enabled.
+* Improved PDF generation with staged processing, progress feedback, and a smoother activity indicator.
+* Tested up to WordPress 7.1.
+
+= 1.18.5 =
+* Replaced Perfmatters mentions in PDF reports with AI Assets Scanner and linked its product page.
+
+= 1.18.4 =
+* Added a persistent "Place sidebars on top" admin toggle.
+
+= 1.18.3 =
+* Added progress feedback while PDF reports are generated.
+* Fixed PDF quota accounting so failed server-side renders do not consume the daily limit.
+
+= 1.18.2 =
+* Added Code Unloader and AI Assets Scanner product cards to the admin area.
+* Updated tested compatibility to WordPress 7.0.
+
+= 1.18.1 =
+* Added icons to the admin Core Web Vitals interface.
+* Removed Speed Analyzer columns from WooCommerce product lists.
+* Added a Code Unloader reference and changed the plugin icon.
+
+= 1.18 =
+* Added response headers to the Server TTFB module.
+* Reworked license management.
+* Fixed old page-asset data appearing when a numbered test was loaded.
+
+= 1.17.9 =
+* Added Core Web Vitals status to Pages and Posts.
+* Fixed incorrect URL scope being returned when field data used origin scope.
+* Added Core Web Vitals status to PDF reports.
+* Added regression and absolute-value alerts for scheduled tests.
+
+= 1.17.8 =
+* Fixed Core Web Vitals on the main test screen.
+
+= 1.17.7 =
+* Added Core Web Vitals test metrics.
+* Added a 100+ tests message.
+* Fixed the "Add another" button for scheduled tests.
+
+= 1.17.6 =
+* Added Speed Analyzer data to Posts and Pages lists, including the latest performance score, Core Web Vitals metrics, and test/report links.
+
+= 1.17.5 =
+* Added mobile and desktop tested-page screenshots to the diagnostics module.
+* Redesigned scheduled-test emails and added diagnostic results.
+* Changed module order and updated PDF reports for screenshot images.
+
+= 1.17.3 =
+* Fixed Diagnostics section styling.
+* Added database size to tested metrics.
+* Added another Generate PDF button to the main screen.
+
+= 1.17.2 =
+* Fixed the Diagnostics section failing to load.
+* Added minor styling improvements.
+
+= 1.17.1 =
+* Added a scheduled-test badge when loading scheduled results.
+* Added a link from Scheduled Tests to Compare Results.
+
+= 1.17 =
+* Introduced scheduled testing and email results.
+* Reworked Compare Results filtering for scheduled tests.
+
+= 1.16.6 =
+* Fixed recommendation icons and updated PDF report page six.
+* Prevented starting a new test before the current test finishes.
+
+= 1.16.5 =
+* Added CLS and INP.
+* Updated the conclusion module and PDF report.
+
+= 1.16.4 =
+* Removed external notices from the main plugin screen.
+* Added insights to PageSpeed modules.
+* Updated PDF styling and reorganized comparison charts.
+
+= 1.16.3 =
+* Introduced loading tests by result number.
+* Rearranged comparison charts and expanded Diagnostics to ten items.
+* Updated the PDF report.
+
+= 1.16.2 =
+* Added loaded JavaScript and CSS lists.
+
+= 1.16.1 =
+* Reinforced unavailable values instead of zero in Compare Results.
+* Fixed each test counting twice against the daily limit.
+
+= 1.16 =
+* Implemented Compare Results.
+* Fixed persistent object cache status missing from PDF reports.
+
+= 1.15.1 =
+* Updated the Server TTFB module's success notice.
+
+= 1.15 =
+* Added active-plugin count, PHP version, and database-server version.
+* Added the new information to PDF reports.
+* Improved Cloudflare Workers region collection.
+
+= 1.14 =
+* Added a list of the ten largest autoloaded options.
+* Added custom headers and optional calls to action for Agency PDF reports.
+* Fixed minor bugs.
+
+= 1.13 =
+* Fixed slow sites preventing PageSpeed modules from finishing.
+
+= 1.12 =
+* Added premium allowances and additional workers.
+
+= 1.11 =
+* Added another worker and API key.
+* Fixed minor bugs.
+
+= 1.10 =
+* Improved worker reliability.
+* Added PDF reporting.
+* Made minor design and interface changes.
+
+= 1.09 =
+* Added sidebars and the license interface.
+
+= 1.08 =
+* Reworked daily-limit counting to prevent double deductions.
+
+= 1.07 =
+* Changed the plugin slug and added the external-service disclosure.
+* Fixed plugin helper and module files.
+
+= 1.06 =
+* Updated the plugin version to address WordPress.org trademark requirements.
