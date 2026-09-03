@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - TBT is graded on Lighthouse's per-device thresholds - mobile 200/600 ms, desktop 150/350 ms - taken from the audit's own scoring curves. Every other metric keeps a single threshold pair; TBT is the only one Lighthouse scores differently per form factor.
 - The scheduled-alert metric dropdown now offers TBT. An alert configured on INP before this release keeps working: the stored value is accepted and migrated on read, so no re-saving is needed.
 - Advice text for this metric now describes main-thread blocking and long tasks rather than interaction latency.
+- Edited readme.txt for better WP.org SEO and added changelog.txt
 
 ### Fixed
 - **The Compare tab showed N/A for LCP, FCP, CLS and TBT on tests run with 1.19.0.** Total Blocking Time is written on its own line in the results log, but the writer sanitised the two-line payload with a filter that collapses newlines, welding both lines into one that neither parser could read. Scheduled runs were unaffected. Rows already recorded keep the welded line and still read N/A; re-running the test records it correctly.
