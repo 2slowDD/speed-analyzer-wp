@@ -1584,8 +1584,47 @@ function wpsa_updateLoadBtnState() {
       window.wpsa_renderTestedUrlLabel = wpsa_renderTestedUrlLabel;
       window.wpsa_updateLoadBtnState   = wpsa_updateLoadBtnState;
 
+        // A run is already on its way to the server: refuse a second click, Enter or a
+        // re-enabled button. A second submit would start a second run that uses a daily
+        // test, gets no test number (the 60-second header guard) and logs under the
+        // previous test. The claim lives on the form element, so a re-enabled button
+        // cannot bypass it; a back/forward-cache restore releases it (pageshow below).
+        function wpsa_claimRunSubmit(form, btn) {
+          if (form.getAttribute('data-wpsa-submitting') === '1') {
+            return false;
+          }
+          form.setAttribute('data-wpsa-submitting', '1');
+          if (btn) {
+            btn.disabled = true;
+            btn.setAttribute('aria-disabled', 'true');
+          }
+          return true;
+        }
+
+        function wpsa_releaseRunSubmit(form, btn) {
+          form.removeAttribute('data-wpsa-submitting');
+          if (btn) {
+            btn.disabled = false;
+            btn.removeAttribute('aria-disabled');
+          }
+        }
+
+        // Back/forward cache: the page comes back exactly as it was left, mid-submit.
+        window.addEventListener('pageshow', function (ev) {
+          if (ev.persisted) {
+            var f = document.getElementById('speed-test-form');
+            if (f) {
+              wpsa_releaseRunSubmit(f, f.querySelector('.wpsa-button-run'));
+            }
+          }
+        });
+
          // On form submit: reset UI & state, show spinners
-        $('#speed-test-form').on('submit', function(){
+        $('#speed-test-form').on('submit', function(e){
+          if (!wpsa_claimRunSubmit(this, $(this).find('.wpsa-button-run').get(0))) {
+            e.preventDefault();
+            return false;
+          }
           try { wpsa_stopRunAttention(); } catch(e){}
           try { sessionStorage.setItem('WPSA_RUN_AFTER_RELOAD','1'); } catch(e) {}
           // Cooldown will start upon first successful module response
