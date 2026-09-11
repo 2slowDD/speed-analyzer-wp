@@ -7,6 +7,7 @@
  */
 declare( strict_types=1 );
 if ( 'cli' !== PHP_SAPI && ! defined( 'ABSPATH' ) ) { exit; }
+date_default_timezone_set( 'UTC' ); // WordPress runs PHP in UTC; the date checks below assume the same.
 
 // ── Early-termination guard + assertion-count gate (fix-round 5).
 //
@@ -38,7 +39,7 @@ if ( 'cli' !== PHP_SAPI && ! defined( 'ABSPATH' ) ) { exit; }
 //
 // ▲ WHEN YOU LEGITIMATELY ADD OR REMOVE AN ASSERTION, UPDATE THIS NUMBER. ▲
 // It is the only place the expected count is written down.
-define( 'FR_EXPECTED_CHECKS', 186 );
+define( 'FR_EXPECTED_CHECKS', 250 );
 
 $GLOBALS['fr_reached_end'] = false;
 register_shutdown_function( function () {
@@ -97,8 +98,8 @@ require __DIR__ . '/_license-state-subject.php'; // extracted production functio
 
 function body( array $over = array() ) {
     return wp_json_encode( array_merge( array(
-        'v' => 3, 'status' => 'ok', 'fetched_at' => gmdate( 'c' ), 'age_s' => 0,
-        'tier' => 'premium3', 'state' => 'active', 'reason' => null,
+        'v' => 4, 'status' => 'ok', 'fetched_at' => gmdate( 'c' ), 'age_s' => 0,
+        'tier' => 'premium3', 'state' => 'active',
         'allowed' => true, 'limit' => 700, 'remaining' => 700,
         'expires_at' => null, 'days_left' => null, 'grace_until' => null,
         'sites' => array( 'max' => 100, 'used' => 1, 'remaining' => 99, 'active' => true ),
@@ -135,26 +136,23 @@ function reset_state( array $opts = array() ) {
 
 // AC-P1 confirmed free downgrades, but the expiry SURVIVES
 reset_state( array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_expiration' => '2027-01-01' ) );
-$GLOBALS['http']['body'] = body( array( 'tier' => 'free', 'state' => 'invalid', 'reason' => 'disabled' ) );
+$GLOBALS['http']['body'] = body( array( 'tier' => 'free', 'state' => 'disabled', 'expires_at' => null ) );
 $r = wpsa_check_quota( 'ttfb' );
 ok( 'AC-P1 tier', $r['tier'], 'free' );
 ok( 'AC-P1 last_paid', get_option( 'wpsa_last_paid_tier' ), 'premium3' );
 ok( 'AC-P1 expiry retained', get_option( 'wpsa_license_expiration' ), '2027-01-01' );
 
-// AC-P13 (r3 Major 1) the sync path MUST persist reason
-ok( 'AC-P13 reason persisted', get_option( 'wpsa_license_reason' ), 'disabled' );
-
 // AC-P2 503 unverified with a known future expiry -> tier HELD, no writes but status
 reset_state( array( 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => gmdate( 'Y-m-d', time() + 200 * DAY_IN_SECONDS ) ) );
 $GLOBALS['http']['code'] = 503;
-$GLOBALS['http']['body'] = body( array( 'status' => 'unverified', 'tier' => 'free', 'state' => 'invalid' ) );
+$GLOBALS['http']['body'] = body( array( 'status' => 'unverified', 'tier' => 'free', 'state' => 'not_found' ) );
 $r = wpsa_check_quota( 'ttfb' );
 ok( 'AC-P2 tier held', $r['tier'], 'premium3' );
 ok( 'AC-P2 saved_tier untouched', get_option( 'wpsa_saved_tier' ), 'premium3' );
 ok( 'AC-P2 status recorded', get_option( 'wpsa_license_status' ), 'unverified' );
 
-// AC-P3 unverified past the expiry+grace bound -> free
+// Unverified, with only an expiry stored and that date ten days past: the hold has ended -> free
 reset_state( array( 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => gmdate( 'Y-m-d', time() - 10 * DAY_IN_SECONDS ) ) );
 $GLOBALS['http']['code'] = 503;
@@ -172,7 +170,7 @@ ok( 'AC-P4 14d cap', wpsa_check_quota( 'ttfb' )['tier'], 'free' );
 reset_state( array( 'wpsa_saved_tier' => 'premium3' ) );
 $GLOBALS['transients']['wpsa_gk_quota_ttfb'] = array(
     'allowed' => true, 'tier' => 'premium3', 'limit' => 700, 'remaining' => 700,
-    'state' => 'active', 'reason' => null, 'status' => 'ok',
+    'state' => 'active', 'status' => 'ok',
 );
 $GLOBALS['http']['error'] = true;
 ok( 'AC-P5 cached paid honoured', wpsa_check_quota( 'ttfb' )['tier'], 'premium3' );
@@ -202,7 +200,7 @@ ok( 'AC-P9 anchored to fetched_at',
 
 // AC-P12 a sold answer does not write last_paid_tier
 reset_state( array( 'wpsa_saved_tier' => 'free' ) );
-$GLOBALS['http']['body'] = body( array( 'tier' => 'free', 'state' => 'sold', 'reason' => 'not_delivered' ) );
+$GLOBALS['http']['body'] = body( array( 'tier' => 'free', 'state' => 'sold' ) );
 wpsa_check_quota( 'ttfb' );
 ok( 'AC-P12 state', get_option( 'wpsa_license_state' ), 'sold' );
 ok( 'AC-P12 no last_paid', get_option( 'wpsa_last_paid_tier' ), false );
@@ -213,7 +211,7 @@ ok( 'AC-P12 no last_paid', get_option( 'wpsa_last_paid_tier' ), false );
 reset_state( array( 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => gmdate( 'Y-m-d', time() + 200 * DAY_IN_SECONDS ) ) );
 $GLOBALS['http']['code'] = 200;                       // NOTE: 200, not 503
-$GLOBALS['http']['body'] = body( array( 'status' => 'unverified', 'tier' => 'free', 'state' => 'invalid' ) );
+$GLOBALS['http']['body'] = body( array( 'status' => 'unverified', 'tier' => 'free', 'state' => 'not_found' ) );
 $r = wpsa_check_quota( 'ttfb' );
 ok( 'AC-P15 tier held on 200+unverified', $r['tier'], 'premium3' );
 ok( 'AC-P15 saved_tier untouched', get_option( 'wpsa_saved_tier' ), 'premium3' );
@@ -229,9 +227,9 @@ reset_state( array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_expiration' =
 $GLOBALS['http']['body'] = body( array( 'state' => 'active', 'expires_at' => null ) );
 wpsa_check_quota( 'ttfb' );
 ok( 'AC-P16 perpetual clears stale date', get_option( 'wpsa_license_expiration' ), '' );
-// ...but a confirmed free/invalid answer still retains it (this is AC-P1's guarantee).
+// ...but an answer without an expires_at still retains it, as the first checks in this file also show.
 reset_state( array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_expiration' => '2027-01-01' ) );
-$GLOBALS['http']['body'] = body( array( 'tier' => 'free', 'state' => 'invalid', 'reason' => 'disabled', 'expires_at' => null ) );
+$GLOBALS['http']['body'] = body( array( 'tier' => 'free', 'state' => 'disabled', 'expires_at' => null ) );
 wpsa_check_quota( 'ttfb' );
 ok( 'AC-P16 free answer retains date', get_option( 'wpsa_license_expiration' ), '2027-01-01' );
 
@@ -278,10 +276,10 @@ $fr_paid = array(
     'wpsa_license_status'     => 'ok',
 );
 
-// A v3 answer missing any one of the four fields the write reads. The answer
+// An answer missing any one of the four fields the write reads. The answer
 // otherwise says "confirmed free", so an unguarded write would downgrade.
 foreach ( array( 'allowed', 'tier', 'limit', 'remaining' ) as $fr_field ) {
-    $fr_b = json_decode( body( array( 'tier' => 'free', 'state' => 'invalid', 'reason' => 'disabled' ) ), true );
+    $fr_b = json_decode( body( array( 'tier' => 'free', 'state' => 'disabled' ) ), true );
     unset( $fr_b[ $fr_field ] );
     fr_run_untrusted( "Malformed answer, no '$fr_field'", $fr_paid, 200, json_encode( $fr_b ) );
 }
@@ -295,12 +293,12 @@ fr_run_untrusted( 'Legacy body on HTTP 500', array( 'wpsa_saved_tier' => 'free' 
     json_encode( array( 'allowed' => true, 'tier' => 'premium3', 'limit' => 700, 'remaining' => 700 ) ) );
 
 // The two legs of the status gate nothing else reaches: a body that is not
-// JSON at all (an HTML error page on HTTP 200), and a well-formed v3 answer on
-// a code other than 200 or 503. The v3 answer says "confirmed free", so taking
-// it as authoritative would downgrade.
+// JSON at all (an HTML error page on HTTP 200), and a well-formed answer on a
+// code other than 200 or 503. That answer says "confirmed free", so taking it
+// as authoritative would downgrade.
 fr_run_untrusted( 'HTML error page on HTTP 200', $fr_paid, 200, '<html><body><h1>502 Bad Gateway</h1></body></html>' );
-fr_run_untrusted( 'Well-formed v3 answer on HTTP 500', $fr_paid, 500,
-    body( array( 'tier' => 'free', 'state' => 'invalid', 'reason' => 'disabled' ) ) );
+fr_run_untrusted( 'Well-formed answer on HTTP 500', $fr_paid, 500,
+    body( array( 'tier' => 'free', 'state' => 'disabled' ) ) );
 
 // ── Task B6 / D10 — deactivation honours the customer's remaining paid days,
 // then falls back to free. wpsa_get_license_tier() must apply this ONLY when
@@ -631,6 +629,46 @@ function fr_run_last_verified_snippet( $snippet, $fetched_at_iso ) {
 }
 
 /**
+ * Runs one extracted slice of the activation branch with the given variables in
+ * scope ($resp for the failure slice; $key and $body for the success slice) and a
+ * controlled option table. Returns the resulting options and the two variables the
+ * failure slice sets. Carries null sentinels when the slice was not extracted or
+ * would not run, so the assertions downstream go red instead of passing on a run
+ * that never happened. A PHP warning, notice or deprecation raised inside the
+ * slice counts as a failed run too: it is thrown, reported in 'error', and returns
+ * the same sentinels, so a slice that reads a variable it was never given cannot
+ * pass.
+ */
+function fr_run_activate_slice( $snippet, array $vars, array $start_opts ) {
+    $out = array( 'opts' => null, 'reason' => null, 'msg' => null, 'error' => '' );
+    if ( ! is_string( $snippet ) || '' === $snippet ) {
+        $out['error'] = 'snippet was not extracted';
+        return $out;
+    }
+    $GLOBALS['opts'] = $start_opts;
+    $resp   = array_key_exists( 'resp', $vars ) ? $vars['resp'] : null; // read by the eval'd slice
+    $key    = array_key_exists( 'key', $vars ) ? $vars['key'] : '';     // read by the eval'd slice
+    $body   = array_key_exists( 'body', $vars ) ? $vars['body'] : null; // read by the eval'd slice
+    $reason = null;
+    $msg    = null;
+    set_error_handler( function ( $errno, $errstr ) {
+        throw new ErrorException( $errstr, 0, $errno );
+    } );
+    try {
+        eval( $snippet );
+    } catch ( Throwable $e ) {
+        $out['error'] = get_class( $e ) . ': ' . $e->getMessage();
+        return $out;
+    } finally {
+        restore_error_handler();
+    }
+    $out['opts']   = $GLOBALS['opts'];
+    $out['reason'] = $reason;
+    $out['msg']    = $msg;
+    return $out;
+}
+
+/**
  * Evals the extracted /deactivate response-handling snippet against a
  * caller-supplied $resp. Returns the resulting $deactivate_failed AND
  * whether the else-branch's body actually ran ($deact_code stops being the
@@ -958,6 +996,148 @@ ok( 'AC-B6F1 last_verified equals strtotime( fetched_at ) exactly', $fr_lv_actua
 ok( 'AC-B6F1 last_verified is not time() (far-past fetched_at proves it)',
     ( is_int( $fr_lv_actual ) && abs( $fr_lv_actual - time() ) > 30 * DAY_IN_SECONDS ), true );
 
+// ── The activation branch, executed: two slices of the real source.
+//
+// wpsa_handle_license_form() cannot run whole here (wp_die/exit), so the
+// activation branch is cut at two points that do no redirecting:
+//  (i)  the worker's answer and the failure-message choice: from `$body = ` through
+//       the `$msg = …;` statement, closed with a `}` for the failure `if` it
+//       opens. The if-condition and the message table run for real.
+//  (ii) the success writes: from the licence-key store up to the success notice.
+// Not executed: the transients, the redirects and `exit`, the handler's
+// registration on admin_post_wpsa_save_license, and its nonce and capability
+// checks. Only the registration and those two checks are pinned, by presence
+// and order, below the activation checks; nothing pins the transients, the
+// redirects or `exit` (the one `set_transient(` anchor only bounds the
+// deactivate branch's chunk).
+// The accepted residuals further down give the complete list.
+$fr_act_fail_start = fr_anchor_once( $fr_act, '$body = is_wp_error( $resp )', 'Activation failure slice start' );
+$fr_act_msg_pos    = fr_anchor_once( $fr_act, '$msg = isset( $messages[ $reason ] )', 'Activation failure slice end' );
+$fr_act_fail_snip  = null;
+if ( null !== $fr_act_fail_start && null !== $fr_act_msg_pos && $fr_act_fail_start < $fr_act_msg_pos ) {
+    $fr_msg_end = strpos( $fr_act, ';', $fr_act_msg_pos );
+    if ( false !== $fr_msg_end ) {
+        $fr_act_fail_snip = substr( $fr_act, $fr_act_fail_start, $fr_msg_end + 1 - $fr_act_fail_start ) . "\n}";
+    }
+}
+ok( 'Activation failure slice is extractable and brace-balanced',
+    ( is_string( $fr_act_fail_snip ) && 0 === fr_token_brace_depth( $fr_act_fail_snip ) ), true );
+
+$fr_act_ok_start = fr_anchor_once( $fr_act, "update_option( 'wpsa_license_key', \$key );", 'Activation success slice start' );
+$fr_act_ok_note  = fr_anchor_once( $fr_act, "'activated'", 'Activation success notice' );
+$fr_act_ok_snip  = null;
+if ( null !== $fr_act_ok_start && null !== $fr_act_ok_note && $fr_act_ok_start < $fr_act_ok_note ) {
+    $fr_note_call = strrpos( substr( $fr_act, 0, $fr_act_ok_note ), 'add_settings_error(' );
+    if ( false !== $fr_note_call && $fr_note_call > $fr_act_ok_start ) {
+        $fr_act_ok_snip = substr( $fr_act, $fr_act_ok_start, $fr_note_call - $fr_act_ok_start );
+    }
+}
+ok( 'Activation success slice is extractable and brace-balanced',
+    ( is_string( $fr_act_ok_snip ) && 0 === fr_token_brace_depth( $fr_act_ok_snip ) ), true );
+
+// Each failure code the service sends selects its own message.
+foreach ( array(
+    'unverified'      => 'Could not reach the licence service. Please try again in a moment.',
+    'slots'           => 'All licence slots are in use. Deactivate another site, or upgrade.',
+    'activate_failed' => 'The licence service could not activate this key. Please try again.',
+    'not_found'       => "We don't recognise that licence key — check it for typos.",
+) as $fr_code => $fr_text ) {
+    $fr_run = fr_run_activate_slice( $fr_act_fail_snip,
+        array( 'resp' => array( 'code' => 409, 'body' => json_encode( array( 'success' => false, 'reason' => $fr_code ) ) ) ), array() );
+    ok( "Activation failure '$fr_code' selects its message",
+        array( $fr_run['error'], $fr_run['reason'], $fr_run['msg'] ), array( '', $fr_code, $fr_text ) );
+}
+$fr_run = fr_run_activate_slice( $fr_act_fail_snip,
+    array( 'resp' => array( 'code' => 409, 'body' => json_encode( array( 'success' => false ) ) ) ), array() );
+ok( 'Activation failure without a reason falls back to the unverified message',
+    $fr_run['msg'], 'Could not reach the licence service. Please try again in a moment.' );
+$fr_run = fr_run_activate_slice( $fr_act_fail_snip, array( 'resp' => new WP_Error_Stub() ), array() );
+ok( 'Activation transport error falls back to the unverified message',
+    $fr_run['msg'], 'Could not reach the licence service. Please try again in a moment.' );
+$fr_run = fr_run_activate_slice( $fr_act_fail_snip,
+    array( 'resp' => array( 'code' => 200, 'body' => json_encode( array( 'success' => true ) ) ) ), array() );
+ok( 'Activation success selects no failure message', array( $fr_run['error'], $fr_run['msg'] ), array( '', null ) );
+
+// The success writes store the service's answer as received.
+$fr_ok_body = array( 'success' => true, 'token' => 'TOK-A', 'tier' => 'premium3', 'expires_at' => '2027-09-09',
+    'grace_until' => '2027-09-16', 'state' => 'active', 'status' => 'ok', 'fetched_at' => '2026-09-11T08:00:00Z' );
+$fr_run = fr_run_activate_slice( $fr_act_ok_snip, array( 'key' => 'PREKEY-A', 'body' => $fr_ok_body ), array() );
+ok( 'Activation success slice ran without error', $fr_run['error'], '' );
+ok( 'Activation stores the key, token, tier, expiry, state and status as received',
+    array( fr_opt_value( $fr_run['opts'], 'wpsa_license_key' ), fr_opt_value( $fr_run['opts'], 'wpsa_license_activation_token' ),
+           fr_opt_value( $fr_run['opts'], 'wpsa_saved_tier' ), fr_opt_value( $fr_run['opts'], 'wpsa_license_expiration' ),
+           fr_opt_value( $fr_run['opts'], 'wpsa_license_state' ), fr_opt_value( $fr_run['opts'], 'wpsa_license_status' ) ),
+    array( 'PREKEY-A', 'TOK-A', 'premium3', '2027-09-09', 'active', 'ok' ) );
+ok( "Activation's last_verified comes from the answer's fetched_at",
+    fr_opt_value( $fr_run['opts'], 'wpsa_license_last_verified' ), strtotime( '2026-09-11T08:00:00Z' ) );
+$fr_again = fr_run_activate_slice( $fr_act_ok_snip, array( 'key' => 'PREKEY-A', 'body' => $fr_ok_body ),
+    is_array( $fr_run['opts'] ) ? $fr_run['opts'] : array() );
+// What an activation leaves stored, and the days the licence screens show from it on
+// one fixed day, eight days before the expiry. The display helper lives in the notice
+// file, which the render checks further down load too.
+require_once __DIR__ . '/../includes/license-notice.php';
+$fr_act_day  = strtotime( '2027-09-01 12:00:00 UTC' );
+$fr_act_seen = function ( $opts ) use ( $fr_act_day ) {
+    $exp   = fr_opt_value( $opts, 'wpsa_license_expiration' );
+    $grace = fr_opt_value( $opts, 'wpsa_license_grace_until' );
+    $shown = wpsa_license_display( (string) fr_opt_value( $opts, 'wpsa_license_state' ),
+        (string) fr_opt_value( $opts, 'wpsa_saved_tier' ), '', (string) $exp, (string) $grace, $fr_act_day );
+    return array( $exp, $grace, $shown['days'] );
+};
+ok( 'A second activation with the same answer keeps the expiry, the grace date and the days shown',
+    array_merge( $fr_act_seen( $fr_run['opts'] ), $fr_act_seen( $fr_again['opts'] ) ),
+    array( '2027-09-09', '2027-09-16', 8, '2027-09-09', '2027-09-16', 8 ) );
+// Paired with the check above: a later answer with new dates must replace the stored
+// ones. Its dates are earlier than the stored ones, so neither code that keeps whatever
+// is already stored nor a rule that never shortens the stored date can pass both checks.
+// Its grace date is deliberately not a week after its expiry, so a store that computes
+// its own grace date fails too.
+$fr_later = fr_run_activate_slice( $fr_act_ok_snip,
+    array( 'key' => 'PREKEY-A', 'body' => array_merge( $fr_ok_body, array( 'expires_at' => '2026-12-09', 'grace_until' => '2026-12-20' ) ) ),
+    is_array( $fr_again['opts'] ) ? $fr_again['opts'] : array() );
+ok( "A later activation stores the service's new expiry and grace dates",
+    array( fr_opt_value( $fr_later['opts'], 'wpsa_license_expiration' ), fr_opt_value( $fr_later['opts'], 'wpsa_license_grace_until' ) ),
+    array( '2026-12-09', '2026-12-20' ) );
+ok( 'Activation no longer writes the reason option',
+    is_array( $fr_run['opts'] ) && ! array_key_exists( 'wpsa_license_reason', $fr_run['opts'] ), true );
+$fr_run = fr_run_activate_slice( $fr_act_ok_snip, array( 'key' => 'PREKEY-A', 'body' => $fr_ok_body ), array() );
+ok( 'Activation stores the grace date beside the expiry', fr_opt_value( $fr_run['opts'], 'wpsa_license_grace_until' ), '2027-09-16' );
+$fr_run = fr_run_activate_slice( $fr_act_ok_snip,
+    array( 'key' => 'PREKEY-A', 'body' => array_merge( $fr_ok_body, array( 'expires_at' => null, 'grace_until' => null ) ) ), array() );
+ok( 'A perpetual activation stores neither date',
+    array( fr_opt_value( $fr_run['opts'], 'wpsa_license_expiration' ), fr_opt_value( $fr_run['opts'], 'wpsa_license_grace_until' ) ),
+    array( '', '' ) );
+// Two activation answers edited by hand, each over a stale stored pair: one without a grace
+// date, and one with an empty expiry that still carries a grace date. Neither may leave a
+// grace date stored, and none may be computed here.
+$fr_act_stale = array( 'wpsa_license_expiration' => '2027-01-01', 'wpsa_license_grace_until' => '2027-01-08' );
+$fr_no_grace  = fr_run_activate_slice( $fr_act_ok_snip,
+    array( 'key' => 'PREKEY-A', 'body' => array_merge( $fr_ok_body, array( 'grace_until' => null ) ) ), $fr_act_stale );
+$fr_no_exp    = fr_run_activate_slice( $fr_act_ok_snip,
+    array( 'key' => 'PREKEY-A', 'body' => array_merge( $fr_ok_body, array( 'expires_at' => '' ) ) ), $fr_act_stale );
+ok( 'Activation answers edited by hand: no grace date stores none, and an empty expiry stores no grace date',
+    array( fr_opt_value( $fr_no_grace['opts'], 'wpsa_license_expiration' ), fr_opt_value( $fr_no_grace['opts'], 'wpsa_license_grace_until' ),
+           fr_opt_value( $fr_no_exp['opts'], 'wpsa_license_expiration' ), fr_opt_value( $fr_no_exp['opts'], 'wpsa_license_grace_until' ) ),
+    array( '2027-09-09', '', '', '' ) );
+
+// The licence form handler is registered on its admin-post action, and its nonce and
+// capability checks come before both branches. Presence and order only: the handler
+// cannot run here (wp_die/exit).
+$fr_hf_body = fr_fn_body( $main, 'wpsa_handle_license_form' );
+$fr_hf_at   = function ( $needle ) use ( $fr_hf_body ) {
+    return is_string( $fr_hf_body ) ? strpos( $fr_hf_body, $needle ) : false;
+};
+$fr_hf_deact = $fr_hf_at( "if ( isset( \$_POST['wpsa_deactivate_license'] ) )" );
+$fr_hf_act   = $fr_hf_at( "if ( isset( \$_POST['wpsa_activate_license'] ) )" );
+$fr_hf_first = function ( $at ) use ( $fr_hf_deact, $fr_hf_act ) {
+    return is_int( $at ) && is_int( $fr_hf_deact ) && is_int( $fr_hf_act ) && $at < $fr_hf_deact && $at < $fr_hf_act;
+};
+ok( 'Licence form handler: registered, with its nonce and capability checks before both branches',
+    array( fr_contains( $main, "add_action( 'admin_post_wpsa_save_license', 'wpsa_handle_license_form' );" ),
+           $fr_hf_first( $fr_hf_at( "check_admin_referer( 'wpsa_license_action', 'wpsa_license_nonce' );" ) ),
+           $fr_hf_first( $fr_hf_at( "if ( ! current_user_can( 'manage_options' ) ) {" ) ) ),
+    array( true, true, true ) );
+
 // M6 — the headline defect of this entire release (F5, reproduced live by the
 // operator) must never come back: activation must never fabricate an expiry.
 // Nothing else in the automated suite catches its return, because AC-P11
@@ -1006,19 +1186,27 @@ ok( 'AC-B6F-M5 production snapshot does not read wpsa_saved_tier directly',
 //    wp_safe_redirect() and the exit — is not executed and not asserted;
 //    wp_die/exit make the real handler unrunnable in-process, and that has
 //    been true of this file since AC-P8.
-//  * Nothing here proves the handler is still REGISTERED on
-//    admin_post_wpsa_save_license, nor that control reaches the deactivate
-//    branch at all. A change that removes the add_action(), or that returns
-//    earlier in the function, is invisible to these assertions.
+//  * The handler's registration on admin_post_wpsa_save_license is pinned by
+//    presence only. Nothing proves that control reaches the deactivate branch:
+//    a change that returns earlier in the function is invisible to these
+//    assertions.
 //  * The scenario set is finite: transport error, empty stored token, and a
 //    2xx success. A conditional wrapped around the cleanup that happens to be
 //    TRUE in all three would pass — e.g. `if ( true )`. Every realistic
 //    variant of the defect this guards (keyed on $deactivate_failed, on
 //    $token, or on an undefined/absent function) is caught, but the guard is
 //    scenario-bounded, not exhaustive.
-//  * The activate branch is only partly executed — the last_verified
-//    derivation. Its other option writes are covered by shape assertions
-//    (AC-P8, M6) only.
+//  * The activate branch runs in part. Its failure-message choice and its
+//    success writes execute through fr_run_activate_slice(), and the
+//    last_verified derivation also runs alone through
+//    fr_run_last_verified_snippet(). Not executed: the key's read from the
+//    form and its prefix check, the /activate request (the runner supplies
+//    the answer), the notices, the transients, the redirects and exits, the
+//    handler's registration on admin_post_wpsa_save_license, and its nonce
+//    and capability checks. Of these, the success notice, the registration and
+//    the nonce and capability checks are pinned, by presence only: the
+//    notice's 'activated' code is the success slice's end anchor, and the
+//    other three are checked just after the activation checks.
 //  * Duplicating an anchor's text inside the string it is searched in is a
 //    LOUD, named failure rather than a silent wrong match — deliberately.
 //    That is the accepted cost of the exactly-once rule: a benign comment CAN
@@ -1037,13 +1225,15 @@ ok( 'AC-B6F-M5 production snapshot does not read wpsa_saved_tier directly',
 //    it fails closed — but it pins wording, not behaviour.
 // AC-P11 (§5.1a) the fabricated expiry is discarded on upgrade.
 $GLOBALS['opts'] = array(
-    'wpsa_license_key'        => 'PREKEY',
-    'wpsa_saved_tier'         => 'premium3',
-    'wpsa_license_expiration' => gmdate( 'Y-m-d', time() + 25 * DAY_IN_SECONDS ), // fiction
-    'wpsa_options_version'    => '1.19.0',
+    'wpsa_license_key'         => 'PREKEY',
+    'wpsa_saved_tier'          => 'premium3',
+    'wpsa_license_expiration'  => gmdate( 'Y-m-d', time() + 25 * DAY_IN_SECONDS ), // fiction
+    'wpsa_license_grace_until' => gmdate( 'Y-m-d', time() + 32 * DAY_IN_SECONDS ),
+    'wpsa_options_version'     => '1.19.0',
 );
 wpsa_maybe_migrate_license_options();
 ok( 'AC-P11 expiry discarded', get_option( 'wpsa_license_expiration' ), false );
+ok( 'Upgrade discards the grace date with the expiry', get_option( 'wpsa_license_grace_until' ), false );
 ok( 'AC-P11 state unknown',    get_option( 'wpsa_license_state' ), 'unknown' );
 ok( 'AC-P11 last_verified 0',  (int) get_option( 'wpsa_license_last_verified' ), 0 );
 $GLOBALS['transients'] = array();
@@ -1237,14 +1427,38 @@ $fr_fx_cases = array();
 foreach ( ( is_array( $fr_fx ) && isset( $fr_fx['cases'] ) && is_array( $fr_fx['cases'] ) ) ? $fr_fx['cases'] : array() as $fr_c ) {
     $fr_fx_cases[ $fr_c['id'] ] = $fr_c;
 }
-ok( 'Display fixture: the five shared decide() answers were read', array_keys( $fr_fx_cases ),
-    array( 'grace_day_2', 'expired_40_days', 'boundary_10_days_1800', 'boundary_10_days_0000', 'active_200_days' ) );
+ok( 'Display fixture: the eleven shared decide() answers were read', array_keys( $fr_fx_cases ),
+    array( 'grace_day_2', 'expired_40_days', 'boundary_10_days_1800', 'boundary_10_days_0000', 'active_200_days',
+           'active_perpetual', 'sold_perpetual', 'not_found_foreign_product', 'inactive_perpetual', 'disabled_dated', 'free_no_key' ) );
+
+// body()'s hand-built default is the v4 answer decide() gives a perpetual AGENCY key.
+// Pinned to the producer's own answer, so the default cannot drift from it.
+$fr_default = json_decode( body(), true );
+$fr_perp    = isset( $fr_fx_cases['active_perpetual'] ) ? $fr_fx_cases['active_perpetual']['answer'] : array();
+unset( $fr_default['fetched_at'], $fr_default['age_s'], $fr_perp['fetched_at'], $fr_perp['age_s'] );
+ksort( $fr_default );
+ksort( $fr_perp );
+ok( "body()'s default equals decide()'s answer for a perpetual AGENCY key", $fr_default, $fr_perp );
+
+// Every state the service can send is stored as received, and the old reason option
+// is never written. The answers come from decide() through the shared fixture.
+foreach ( $fr_fx_cases as $fr_id => $fr_c ) {
+    if ( 'free_no_key' === $fr_id ) {
+        continue; // no key stored: the plugin never asks the service
+    }
+    reset_state( array( 'wpsa_saved_tier' => 'premium3' ) );
+    $GLOBALS['http']['body'] = json_encode( $fr_c['answer'] );
+    wpsa_check_quota( 'ttfb' );
+    ok( "State stored as received, $fr_id",
+        array( get_option( 'wpsa_license_state' ), array_key_exists( 'wpsa_license_reason', $GLOBALS['opts'] ) ),
+        array( $fr_c['answer']['state'], false ) );
+}
 
 /** The helper's answer for one fixture case, counted from that case's own "now". */
 function fr_display_for( array $case, $last_paid ) {
     $a = $case['answer'];
     return wpsa_license_display( (string) $a['state'], (string) $a['tier'], $last_paid,
-        (string) $a['expires_at'], intdiv( (int) $case['input']['nowMs'], 1000 ) );
+        (string) $a['expires_at'], (string) $a['grace_until'], intdiv( (int) $case['input']['nowMs'], 1000 ) );
 }
 foreach ( array(
     // Two days into grace. The service's own days_left is 0; five days of access are left.
@@ -1262,6 +1476,10 @@ foreach ( array(
 }
 ok( 'Display helper, expired_40_days with no lapsed plan stored: falls back to the tier',
     isset( $fr_fx_cases['expired_40_days'] ) ? fr_display_for( $fr_fx_cases['expired_40_days'], '' )['label'] : null, 'Free' );
+ok( 'Display helper, grace: a passed grace date reads 0, never negative; no grace date reads null',
+    array( wpsa_license_display( 'grace', 'premium3', '', '2027-06-13', '2027-06-20', strtotime( '2027-06-23 12:00:00 UTC' ) )['days'],
+           wpsa_license_display( 'grace', 'premium3', '', '2027-06-13', '', strtotime( '2027-06-15 12:00:00 UTC' ) )['days'] ),
+    array( 0, null ) );
 
 // ── Both render sites, driven through the real producer chain.
 //
@@ -1273,8 +1491,9 @@ ok( 'Display helper, expired_40_days with no lapsed plan stored: falls back to t
 // stops asking wpsa_license_display() prints the service's clamped days_left or
 // the free tier's name here, and its assertion goes red.
 //
-// WordPress stand-ins for the two render functions. None existed before, so
-// defining them cannot change any earlier result.
+// WordPress stand-ins for the two render functions. PHP defines every top-level
+// function in this file before the first line runs, so these exist for the
+// checks above as well.
 function get_current_user_id() { return 1; }
 function delete_transient( $k ) { unset( $GLOBALS['transients'][ $k ] ); return true; }
 function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
@@ -1368,8 +1587,137 @@ ok( 'Panel and notice, active_200_days: the plan name alone, and no notice',
            $fr_r['notice'] ?? null, $fr_r['raised'] ?? null ),
     array( true, false, '', array() ) );
 
+// Every keyed state the service sends, rendered on both real surfaces. The panel
+// prints its line through wp_kses(), beside the warning icon; the notice escapes
+// the line, so an apostrophe arrives as &#039; there.
+foreach ( array(
+    'sold_perpetual'            => array( 'Your licence has been paid for but not yet delivered. Please contact support.', 'Contact' ),
+    'not_found_foreign_product' => array( "We don't recognise that licence key — check it for typos", '' ),
+    'inactive_perpetual'        => array( 'This licence is no longer active', 'Renew' ),
+    'disabled_dated'            => array( 'This licence is no longer active', 'Renew' ),
+) as $fr_id => $fr_w ) {
+    list( $fr_line, $fr_button ) = $fr_w;
+    $fr_r = isset( $fr_fx_cases[ $fr_id ] ) ? fr_render_both( $fr_fx_cases[ $fr_id ], $fr_paying ) : array();
+    ok( "Panel, $fr_id: renders '$fr_line' and the warning icon, cleanly",
+        array( fr_contains( $fr_r['panel'] ?? null, $fr_line ), fr_contains( $fr_r['panel'] ?? null, '⚠️' ),
+               $fr_r['raised'] ?? null ),
+        array( true, true, array() ) );
+    ok( "Notice, $fr_id: renders '$fr_line', its button, and no close control",
+        array( fr_contains( $fr_r['notice'] ?? null, esc_html( $fr_line ) ),
+               fr_contains( $fr_r['notice'] ?? null, 'class="button">Renew</a>' ),
+               fr_contains( $fr_r['notice'] ?? null, 'class="button">Contact</a>' ),
+               fr_contains( $fr_r['notice'] ?? null, 'is-dismissible' ) ),
+        array( true, 'Renew' === $fr_button, 'Contact' === $fr_button, false ) );
+}
+$fr_r = isset( $fr_fx_cases['active_perpetual'] ) ? fr_render_both( $fr_fx_cases['active_perpetual'], $fr_paying ) : array();
+ok( 'Panel and notice, active_perpetual: the plan name alone, and no notice',
+    array( fr_contains( $fr_r['panel'] ?? null, 'AGENCY' ), fr_contains( $fr_r['panel'] ?? null, 'expires in' ),
+           $fr_r['notice'] ?? null, $fr_r['raised'] ?? null ),
+    array( true, false, '', array() ) );
+// A stored state the panel does not name (a pre-v4 'invalid', or anything unexpected),
+// reached with the service unreachable and nothing cached: the plan name, no notice.
+foreach ( array( 'invalid', 'something-else' ) as $fr_state ) {
+    reset_state( array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_state' => $fr_state,
+                        'wpsa_license_expiration' => gmdate( 'Y-m-d', time() + 200 * DAY_IN_SECONDS ) ) );
+    $GLOBALS['http'] = array( 'code' => 503, 'body' => body( array( 'status' => 'unverified' ) ), 'error' => false );
+    $fr_p = fr_capture( 'wpsa_render_license_panel_ui' );
+    $fr_n = fr_capture( 'wpsa_render_license_notice' );
+    ok( "Stored '$fr_state': the plan name, no notice, cleanly",
+        array( fr_contains( $fr_p['html'], 'AGENCY' ), $fr_n['html'], array_merge( $fr_p['raised'], $fr_n['raised'] ) ),
+        array( true, '', array() ) );
+}
+
+// The grace date travels from the service's answer into its own option and back out
+// through the display helper: grace_day_2 still reads five days of access.
+$fr_g = isset( $fr_fx_cases['grace_day_2'] ) ? $fr_fx_cases['grace_day_2'] : null;
+if ( is_array( $fr_g ) ) {
+    reset_state( array( 'wpsa_saved_tier' => 'premium3' ) );
+    $GLOBALS['http']['body'] = json_encode( $fr_g['answer'] );
+    wpsa_check_quota( 'ttfb' );
+}
+ok( 'Grace date stored as received and read back into five days of access',
+    is_array( $fr_g ) ? array( get_option( 'wpsa_license_grace_until' ),
+        wpsa_license_display( 'grace', 'premium3', '', (string) get_option( 'wpsa_license_expiration' ),
+            (string) get_option( 'wpsa_license_grace_until' ), intdiv( (int) $fr_g['input']['nowMs'], 1000 ) )['days'] ) : null,
+    array( '2027-06-20', 5 ) );
+// The same answer, with its grace date deliberately not a week after the expiry, so a store that computes its own date fails.
+if ( is_array( $fr_g ) ) {
+    reset_state( array( 'wpsa_saved_tier' => 'premium3' ) );
+    $GLOBALS['http']['body'] = json_encode( array_merge( $fr_g['answer'], array( 'grace_until' => '2027-06-24' ) ) );
+    wpsa_check_quota( 'ttfb' );
+}
+ok( 'A grace date that is not a week after the expiry is stored as the service sent it',
+    is_array( $fr_g ) ? array( get_option( 'wpsa_license_expiration' ), get_option( 'wpsa_license_grace_until' ) ) : null,
+    array( '2027-06-13', '2027-06-24' ) );
+// The same answer with its grace date removed by hand, over a stale stored pair: the grace date is stored empty, never computed here.
+if ( is_array( $fr_g ) ) {
+    reset_state( array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_expiration' => '2027-01-01', 'wpsa_license_grace_until' => '2027-01-08' ) );
+    $GLOBALS['http']['body'] = json_encode( array_merge( $fr_g['answer'], array( 'grace_until' => null ) ) );
+    wpsa_check_quota( 'ttfb' );
+}
+ok( 'An answer edited by hand to carry no grace date stores its expiry and an empty grace date',
+    is_array( $fr_g ) ? array( get_option( 'wpsa_license_expiration' ), get_option( 'wpsa_license_grace_until' ) ) : null,
+    array( '2027-06-13', '' ) );
+
+// The expiry and its grace date move together. A missing answer returns null, so every
+// check below fails on its own rather than passing on a run that never happened.
+$fr_pair = function ( $fr_id, array $start ) use ( $fr_fx_cases ) {
+    if ( ! isset( $fr_fx_cases[ $fr_id ] ) ) {
+        return null;
+    }
+    reset_state( $start );
+    $GLOBALS['http']['body'] = json_encode( $fr_fx_cases[ $fr_id ]['answer'] );
+    wpsa_check_quota( 'ttfb' );
+    return array( get_option( 'wpsa_license_expiration' ), get_option( 'wpsa_license_grace_until' ) );
+};
+$fr_old = array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_expiration' => '2027-01-01', 'wpsa_license_grace_until' => '2027-01-08' );
+ok( 'An answer with an expiry writes both dates (grace)', $fr_pair( 'grace_day_2', $fr_old ), array( '2027-06-13', '2027-06-20' ) );
+ok( 'An answer with an expiry writes both dates, whatever its state (disabled)', $fr_pair( 'disabled_dated', $fr_old ), array( '2027-09-01', '2027-09-08' ) );
+ok( 'A perpetual active answer clears both dates', $fr_pair( 'active_perpetual', $fr_old ), array( '', '' ) );
+foreach ( array( 'sold_perpetual', 'inactive_perpetual', 'free_no_key' ) as $fr_id ) {
+    ok( "An answer without an expiry leaves both dates ($fr_id)", $fr_pair( $fr_id, $fr_old ), array( '2027-01-01', '2027-01-08' ) );
+}
+
+// The offline hold: the service's grace date, else the expiry date alone, else 14 days.
+// wpsa_license_unverified_snapshot() reads time(), so the boundaries are today and yesterday.
+// That tests the day, not the time of day: a cutoff moved earlier in the day is caught only
+// by a run made after the new cutoff, and one moved to 23:59:58 is never caught.
+$fr_today     = gmdate( 'Y-m-d', time() );
+$fr_yesterday = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+$fr_long_ago  = gmdate( 'Y-m-d', time() - 10 * DAY_IN_SECONDS );
+$fr_hold = function ( array $opts ) {
+    reset_state( array_merge( array( 'wpsa_saved_tier' => 'premium3' ), $opts ) );
+    $GLOBALS['http'] = array( 'code' => 503, 'body' => body( array( 'status' => 'unverified' ) ), 'error' => false );
+    return wpsa_check_quota( 'ttfb' )['tier'];
+};
+ok( 'Offline hold, grace date today: held', $fr_hold( array( 'wpsa_license_grace_until' => $fr_today, 'wpsa_license_expiration' => $fr_long_ago ) ), 'premium3' );
+ok( 'Offline hold, grace date yesterday: free', $fr_hold( array( 'wpsa_license_grace_until' => $fr_yesterday, 'wpsa_license_expiration' => $fr_long_ago ) ), 'free' );
+ok( 'Offline hold, no grace date, expiry today: held', $fr_hold( array( 'wpsa_license_expiration' => $fr_today ) ), 'premium3' );
+ok( "Offline hold, no grace date, expiry yesterday: free (no grace without the service's date)", $fr_hold( array( 'wpsa_license_expiration' => $fr_yesterday ) ), 'free' );
+ok( 'Offline hold, no dates, verified 13 days ago: held', $fr_hold( array( 'wpsa_license_last_verified' => time() - 13 * DAY_IN_SECONDS ) ), 'premium3' );
+ok( 'Offline hold, no dates, verified 15 days ago: free', $fr_hold( array( 'wpsa_license_last_verified' => time() - 15 * DAY_IN_SECONDS ) ), 'free' );
+
+// The grace days from the service's date equal the seven-day count used before
+// (7 + the days since the expiry), for three expiry times of day and every hour of the
+// grace week. The 7 here is the oracle, written independently of the code under test.
+$fr_sweep_bad = 0;
+foreach ( array( '00:00:01', '12:00:00', '23:59:59' ) as $fr_t ) {
+    $fr_exp_ts = (int) strtotime( '2027-06-13 ' . $fr_t . ' UTC' );
+    $fr_exp    = gmdate( 'Y-m-d', $fr_exp_ts );
+    $fr_grace  = gmdate( 'Y-m-d', $fr_exp_ts + 7 * DAY_IN_SECONDS );
+    for ( $fr_h = 0; $fr_h < 7 * 24; $fr_h++ ) {
+        $fr_now = $fr_exp_ts + $fr_h * 3600;
+        $fr_was = max( 0, 7 + (int) wpsa_license_notice_days_left( $fr_exp, $fr_now ) );
+        $fr_is  = wpsa_license_display( 'grace', 'premium3', '', $fr_exp, $fr_grace, $fr_now )['days'];
+        if ( $fr_was !== $fr_is ) {
+            $fr_sweep_bad++;
+        }
+    }
+}
+ok( 'Grace days unchanged over 504 grace-week hours', $fr_sweep_bad, 0 );
+
 // The service unreachable with nothing cached: the unverified snapshot carries no
-// expiry date, so the panel's grace count must come from the stored one.
+// dates, so the grace count on both surfaces must come from the stored grace date.
 $fr_out = array( 'html' => null, 'raised' => array() );
 if ( isset( $fr_fx_cases['grace_day_2'] ) ) {
     fr_render_both( $fr_fx_cases['grace_day_2'], $fr_paying );
@@ -1377,9 +1725,28 @@ if ( isset( $fr_fx_cases['grace_day_2'] ) ) {
     $GLOBALS['http']       = array( 'code' => 503, 'body' => body( array( 'status' => 'unverified' ) ), 'error' => false );
     $fr_out = fr_capture( 'wpsa_render_license_panel_ui' );
 }
-ok( 'Panel, service unreachable and nothing cached: the grace days still come from the stored expiry',
+ok( 'Panel, service unreachable and nothing cached: the grace days still come from the stored grace date',
     array( fr_contains( $fr_out['html'], 'AGENCY — licence expired; 5 days of access remaining' ), $fr_out['raised'] ),
     array( true, array() ) );
+$fr_out_n = isset( $fr_fx_cases['grace_day_2'] ) ? fr_capture( 'wpsa_render_license_notice' ) : array( 'html' => null, 'raised' => array() );
+ok( 'Notice, service unreachable and nothing cached: the grace days come from the stored grace date',
+    array( fr_contains( $fr_out_n['html'], 'AGENCY — licence expired; 5 days of access remaining' ), $fr_out_n['raised'] ),
+    array( true, array() ) );
+
+// A grace date the service set to something other than a week after the expiry. Two
+// days after the expiry, a week counted from the expiry would leave 5 days of access;
+// the stored grace date leaves 8, and both surfaces must print 8.
+reset_state( array( 'wpsa_saved_tier' => 'premium3', 'wpsa_license_state' => 'grace',
+                    'wpsa_license_expiration'  => gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS ),
+                    'wpsa_license_grace_until' => gmdate( 'Y-m-d', time() + 8 * DAY_IN_SECONDS ) ) );
+$GLOBALS['http'] = array( 'code' => 503, 'body' => body( array( 'status' => 'unverified' ) ), 'error' => false );
+$fr_gp = fr_capture( 'wpsa_render_license_panel_ui' );
+$fr_gn = fr_capture( 'wpsa_render_license_notice' );
+ok( 'Panel and notice, a grace date other than a week after the expiry: both count the days to it, cleanly',
+    array( fr_contains( $fr_gp['html'], 'AGENCY — licence expired; 8 days of access remaining' ),
+           fr_contains( $fr_gn['html'], 'AGENCY — licence expired; 8 days of access remaining' ),
+           array_merge( $fr_gp['raised'], $fr_gn['raised'] ) ),
+    array( true, true, array() ) );
 
 // One mapping. The plan names live in the helper alone, and each render site asks
 // it. Presence pins: they catch a site that keeps a copy of its own, or reads the
@@ -1390,10 +1757,10 @@ ok( 'Panel render site: asks the helper once, keeps no plan names, never reads d
     array( is_string( $fr_panel_body ) ? substr_count( $fr_panel_body, 'wpsa_license_display(' ) : null,
            fr_contains( $fr_panel_body, "'AGENCY'" ), fr_contains( $fr_panel_body, "'days_left'" ) ),
     array( 1, false, false ) );
-ok( 'Notice render site: asks the helper once, keeps no plan names, has no grace count of its own',
+ok( 'Notice render site: asks the helper once, keeps no plan names',
     array( is_string( $fr_notice_body ) ? substr_count( $fr_notice_body, 'wpsa_license_display(' ) : null,
-           fr_contains( $fr_notice_body, "'AGENCY'" ), fr_contains( $fr_notice_body, 'wpsa_license_notice_grace_days_left(' ) ),
-    array( 1, false, false ) );
+           fr_contains( $fr_notice_body, "'AGENCY'" ) ),
+    array( 1, false ) );
 ok( 'The plan-name map is written once across the panel and the notice',
     ( is_string( $fr_lpanel ) && is_string( $fr_notice_src ) ) ? substr_count( $fr_lpanel . $fr_notice_src, "'AGENCY'" ) : null, 1 );
 

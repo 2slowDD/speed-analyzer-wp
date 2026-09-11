@@ -5,7 +5,7 @@
  * Renders only on Speed Analyzer's own admin screen (D3), reads options only —
  * no network call on page load; the panel owns the /check call.
  *
- * File shape note: the two pure helpers plus the two small pure computations
+ * File shape note: the two pure helpers plus the small pure computations
  * below them are defined unconditionally so a bare `require` of this file
  * (the test harness) can exercise the real shipped functions under plain PHP
  * CLI, where WordPress does not exist. The admin_notices renderer and the
@@ -25,13 +25,6 @@ if ( ! defined( 'WPSA_LICENSE_NOTICE_DAYS' ) ) {
 if ( ! defined( 'WPSA_LICENSE_NOTICE_URGENT' ) ) {
     define( 'WPSA_LICENSE_NOTICE_URGENT', 3 );
 }
-// D4: 7-day courtesy grace at full tier after expiry (design §5.2), used here
-// only to word the "days of access remaining" line — the grace/expired STATE
-// itself is always the server's authoritative wpsa_license_state, never
-// recomputed locally.
-if ( ! defined( 'WPSA_LICENSE_NOTICE_GRACE_DAYS' ) ) {
-    define( 'WPSA_LICENSE_NOTICE_GRACE_DAYS', 7 );
-}
 // AC-N4: the plugin has exactly one admin screen. Reusing this literal (also
 // hardcoded in wp-speed-analyzer.php's admin_enqueue_scripts hook check)
 // means the two gates cannot silently diverge without both being edited.
@@ -48,7 +41,7 @@ if ( ! defined( 'WPSA_LICENSE_NOTICE_DAY_SECONDS' ) ) {
 /**
  * Should the notice render?
  *
- * @param string   $state             free|unknown|sold|active|grace|expired|invalid
+ * @param string   $state             free|unknown|sold|active|grace|expired|not_found|inactive|disabled
  * @param int|null $days_left         Days until expiry, null when unknown/perpetual.
  * @param int|null $dismissed_at_days days_left recorded when the user dismissed it.
  * @return bool
@@ -57,7 +50,7 @@ function wpsa_license_notice_should_show( $state, $days_left, $dismissed_at_days
     if ( 'free' === $state || 'unknown' === $state || '' === $state ) {
         return false;
     }
-    if ( in_array( $state, array( 'grace', 'expired', 'invalid', 'sold' ), true ) ) {
+    if ( in_array( $state, array( 'grace', 'expired', 'not_found', 'inactive', 'disabled', 'sold' ), true ) ) {
         return true;
     }
     if ( 'active' !== $state || null === $days_left ) {
@@ -79,7 +72,7 @@ function wpsa_license_notice_should_show( $state, $days_left, $dismissed_at_days
  * @return bool
  */
 function wpsa_license_notice_is_dismissible( $state ) {
-    return ! in_array( $state, array( 'grace', 'expired', 'invalid', 'sold' ), true );
+    return ! in_array( $state, array( 'grace', 'expired', 'not_found', 'inactive', 'disabled', 'sold' ), true );
 }
 
 /**
@@ -110,45 +103,28 @@ function wpsa_license_notice_days_left( $expiration, $now = null ) {
 }
 
 /**
- * Grace-window "days of access remaining", derived from the same days-left
- * count computed above (which is negative once the expiry date has passed).
- * Pure; clamped so a stale/adjacent read never goes negative in copy.
- *
- * @param int|null $days_left wpsa_license_notice_days_left() result.
- * @return int|null
- */
-function wpsa_license_notice_grace_days_left( $days_left ) {
-    if ( null === $days_left ) {
-        return null;
-    }
-    return max( 0, WPSA_LICENSE_NOTICE_GRACE_DAYS + (int) $days_left );
-}
-
-/**
  * Chooses which notice copy template and action button to use. Pure — no
  * WordPress calls, no translation functions (those need literal msgids, so
  * they are called at the render site, keyed off the 'template' this returns)
- * — so the state → copy → button mapping (AC-N6 in particular: sold gets
- * Contact and never Renew) is directly assertable without loading WordPress.
+ * — so the state → copy → button mapping is directly assertable without
+ * loading WordPress. Sold gets Contact and never Renew.
  *
- * Mirrors includes/lpanel.php's §5.3 status-string selection exactly,
- * including its split of 'invalid' on $reason ('not_found' is a typo, not a
- * lapse, so it does not carry the same "no longer active" wording).
+ * Mirrors includes/lpanel.php's status-line selection: 'not_found' is a typo,
+ * not a lapse, so it does not carry the "no longer active" wording.
  *
- * @param string $state  free|unknown|sold|active|grace|expired|invalid
- * @param string $reason Worker reason code; only meaningful when $state === 'invalid'.
+ * @param string $state free|unknown|sold|active|grace|expired|not_found|inactive|disabled
  * @return array{template:string,button:string} button is 'renew'|'contact'|'none'.
  */
-function wpsa_license_notice_template( $state, $reason ) {
+function wpsa_license_notice_template( $state ) {
     if ( 'sold' === $state ) {
         return array( 'template' => 'sold', 'button' => 'contact' );
     }
-    if ( 'invalid' === $state && 'not_found' === $reason ) {
-        // §5.3 line 357: a typo is not a lapse — no Renew button, matching the
-        // panel, which gives this row no dedicated CTA either (r-B5F1).
+    if ( 'not_found' === $state ) {
+        // A typo is not a lapse: no Renew button, matching the panel, which gives
+        // this row no button either.
         return array( 'template' => 'invalid_not_found', 'button' => 'none' );
     }
-    if ( 'invalid' === $state ) {
+    if ( 'inactive' === $state || 'disabled' === $state ) {
         return array( 'template' => 'invalid', 'button' => 'renew' );
     }
     if ( 'grace' === $state ) {
@@ -166,10 +142,10 @@ function wpsa_license_notice_template( $state, $reason ) {
  * (includes/lpanel.php) and this notice print, so the two can never disagree.
  * Pure and deterministic: $now is an injectable unix timestamp.
  *
- * Days are counted from the stored expiry date with the two helpers above,
- * never taken from the licence service's days_left, which stays at 0 for the
- * whole grace week:
- *   - grace: the days of access left;
+ * Days are counted with wpsa_license_notice_days_left(), never taken from the
+ * licence service's days_left, which stays at 0 for the whole grace week:
+ *   - grace: the days until the service's grace date, never below 0 (null when
+ *     there is no grace date);
  *   - any other state: the days until the expiry date, the same count that
  *     decides whether this notice shows (null when there is no expiry).
  *
@@ -177,14 +153,15 @@ function wpsa_license_notice_template( $state, $reason ) {
  * name is the plan that lapsed ($last_paid_tier), or the current tier when no
  * lapsed plan is stored.
  *
- * @param string   $state          free|unknown|sold|active|grace|expired|invalid
+ * @param string   $state          free|unknown|sold|active|grace|expired|not_found|inactive|disabled
  * @param string   $tier           Current tier: free|premium1|premium2|premium3.
  * @param string   $last_paid_tier Stored wpsa_last_paid_tier value, or ''.
  * @param string   $expiration     Stored wpsa_license_expiration value, or ''.
+ * @param string   $grace_until    Stored wpsa_license_grace_until value, or ''.
  * @param int|null $now            Unix timestamp to count from; defaults to time().
  * @return array{label:string,days:int|null}
  */
-function wpsa_license_display( $state, $tier, $last_paid_tier, $expiration, $now = null ) {
+function wpsa_license_display( $state, $tier, $last_paid_tier, $expiration, $grace_until, $now = null ) {
     $labels = array(
         'free'     => 'Free',
         'premium1' => 'PRO',
@@ -196,9 +173,11 @@ function wpsa_license_display( $state, $tier, $last_paid_tier, $expiration, $now
         $plan = (string) $last_paid_tier;
     }
 
-    $days = wpsa_license_notice_days_left( $expiration, $now );
     if ( 'grace' === $state ) {
-        $days = wpsa_license_notice_grace_days_left( $days );
+        $days = wpsa_license_notice_days_left( $grace_until, $now );
+        $days = null === $days ? null : max( 0, $days );
+    } else {
+        $days = wpsa_license_notice_days_left( $expiration, $now );
     }
 
     return array(
@@ -230,8 +209,8 @@ function wpsa_render_license_notice() {
     }
 
     $state          = (string) get_option( 'wpsa_license_state', '' );
-    $reason         = (string) get_option( 'wpsa_license_reason', '' );
     $expiration     = (string) get_option( 'wpsa_license_expiration', '' );
+    $grace_until    = (string) get_option( 'wpsa_license_grace_until', '' );
     $tier           = (string) get_option( 'wpsa_saved_tier', 'free' );
     $last_paid_tier = (string) get_option( 'wpsa_last_paid_tier', '' );
 
@@ -247,10 +226,10 @@ function wpsa_render_license_notice() {
 
     // Copy is fixed by the spec's §5.3 table (mirrored from lpanel.php); do not improvise.
     // The plan name and the days number come from the helper the panel shares.
-    $display = wpsa_license_display( $state, $tier, $last_paid_tier, $expiration );
+    $display = wpsa_license_display( $state, $tier, $last_paid_tier, $expiration, $grace_until );
     $label   = $display['label'];
 
-    $tpl = wpsa_license_notice_template( $state, $reason );
+    $tpl = wpsa_license_notice_template( $state );
 
     switch ( $tpl['template'] ) {
         case 'sold':

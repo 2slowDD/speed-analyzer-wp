@@ -1,4 +1,4 @@
-// Harness for the Gatekeeper v3 HTTP worker (cloudflare/gatekeeper/worker.js).
+// Harness for the Gatekeeper v4 HTTP worker (cloudflare/gatekeeper/worker.js).
 // Fix round 1/5, Finding 1: the property this release exists for — 'unverified'
 // must never be served as an actionable 200 — lives in worker.js, not decide.js,
 // and a manual trace is not a guard. This drives every scenario through the real
@@ -369,6 +369,92 @@ await scenario('20 an active record is not refetched early', async () => {
   fetchImpl = async () => { throw new Error('an active record inside the 6 h window must not be refetched'); };
   const body = await (await worker.default.fetch(req('/check?license_key=ACTIVEKEY&operation=ttfb&daily_used=0'), env)).json();
   check('20 served from the cache, no DLM fetch', [body.status, body.state, fetchCalls], ['ok', 'active', 0]);
+});
+
+// ---- Activation failure codes reach the plugin as written ----
+const FOREIGN3 = { product_id: 99999, status: 3, expires_at: null, activations: [] };
+async function postActivate(licenseKey, siteUrl = 'https://new.example') {
+  const res = await worker.default.fetch(
+    req('/activate', { method: 'POST', body: { license_key: licenseKey, site_url: siteUrl } }), env);
+  return { res, body: await res.json() };
+}
+
+// 21. Each /activate failure carries its own code and HTTP status, and puts success and
+//     reason after every field of the service's answer, so no answer field can replace them.
+await scenario('21 /activate failure codes', async () => {
+  const OUTCOME_FIELDS = ['success', 'reason', 'http']; // what the worker adds to the answer
+  const cases = [
+    ['unverified (DLM down, nothing cached)', 'A21UNV', async () => { throw new Error('down'); }, 503, 'unverified'],
+    ['slots (a one-site plan already on another site)', 'A21SLOT',
+      async () => dlmJson({ success: true, data: { ...PAID1, activations: [{ label: 'other.example', token: 't1' }] } }), 409, 'slots'],
+    ['activate_failed (DLM refuses the activation)', 'A21FAIL',
+      async (url) => (new URL(url).pathname.includes('/activate/') ? dlmJson({ success: false }, 500) : dlmJson({ success: true, data: PAID3 })),
+      502, 'activate_failed'],
+    ['not_delivered (sold)', 'A21SOLD', async () => dlmJson({ success: true, data: { ...PAID3, status: 1 } }), 409, 'not_delivered'],
+    ['expired', 'A21EXP', async () => dlmJson({ success: true, data: EXPIRED3() }), 409, 'expired'],
+    ['not_found (another product)', 'A21FOR', async () => dlmJson({ success: true, data: FOREIGN3 }), 409, 'not_found'],
+    ['inactive', 'A21INA', async () => dlmJson({ success: true, data: { ...PAID3, status: 4 } }), 409, 'inactive'],
+    ['disabled', 'A21DIS', async () => dlmJson({ success: true, data: { ...PAID3, status: 5 } }), 409, 'disabled'],
+  ];
+  for (const [label, key, impl, http, reason] of cases) {
+    resetAll();
+    fetchImpl = impl;
+    const { res, body } = await postActivate(key);
+    check(`21 ${label}`, [res.status, body.success, body.reason], [http, false, reason]);
+    const keys = Object.keys(body);
+    const lastAnswerField = Math.max(...keys.filter((k) => !OUTCOME_FIELDS.includes(k)).map((k) => keys.indexOf(k)));
+    check(`21 ${label}: success and reason come after the answer's own fields`,
+          [keys.includes('state'), keys.indexOf('success') > lastAnswerField, keys.indexOf('reason') > lastAnswerField],
+          [true, true, true]);
+  }
+});
+
+// 22. DLM's own "not found" answer for a key with no cached record: named at activation, never proof on /check.
+const DLM_NOT_FOUND = { code: 'data_error', message: "The license key 'SAMPLE-MISSING-KEY' could not be found", data: { code: 404 } };
+await scenario('22 DLM not-found: named at activation, never proof on /check', async () => {
+  resetAll();
+  fetchImpl = async () => dlmJson(DLM_NOT_FOUND, 500);
+  const { res, body } = await postActivate('SAMPLE-MISSING-KEY');
+  const text = JSON.stringify(body);
+  check('22 /activate: 409 not_found', [res.status, body.success, body.reason], [409, false, 'not_found']);
+  check("22 /activate: neither the key nor DLM's message comes back",
+        [text.includes('SAMPLE-MISSING-KEY'), text.includes('could not be found')], [false, false]);
+
+  resetAll();
+  fetchImpl = async () => dlmJson(DLM_NOT_FOUND, 500);
+  const chk   = await worker.default.fetch(req('/check?license_key=SAMPLE-MISSING-KEY&operation=ttfb&daily_used=0'), env);
+  const cbody = await chk.json();
+  check('22 /check: still 503 unverified', [chk.status, cbody.status], [503, 'unverified']);
+});
+
+// 23. Anything that is not exactly DLM's not-found answer stays a DLM failure at activation.
+await scenario('23 near-misses are DLM failures, never not_found', async () => {
+  for (const [label, status, payload] of [
+    ['data_error with data.code 500', 500, { code: 'data_error', data: { code: 500 } }],
+    ['rest_no_route 404', 404, { code: 'rest_no_route', message: 'No route', data: { status: 404 } }],
+    ['permission_denied 403', 403, { code: 'permission_denied', data: { status: 403 } }],
+    ['route_disabled', 403, { code: 'route_disabled', data: { status: 403 } }],
+    ['a prefixed code', 500, { code: 'x_data_error', data: { code: 404 } }],
+  ]) {
+    resetAll();
+    fetchImpl = async () => dlmJson(payload, status);
+    const { res, body } = await postActivate(`A23_${label.replace(/\W/g, '_')}`);
+    check(`23 ${label}: 503 unverified`, [res.status, body.reason], [503, 'unverified']);
+  }
+  resetAll();
+  fetchImpl = async () => new Response('<html>Error</html>', { status: 500, headers: { 'Content-Type': 'text/html' } });
+  const { res, body } = await postActivate('A23HTML');
+  check('23 an HTML 500: 503 unverified', [res.status, body.reason], [503, 'unverified']);
+});
+
+// 24. Through fetch(): /check answers carry v:4 and no reason.
+await scenario('24 /check answers: v:4, no reason', async () => {
+  resetAll();
+  const keyless = await (await worker.default.fetch(req('/check?operation=ttfb&daily_used=0'), env)).json();
+  fetchImpl = async () => dlmJson({ success: true, data: { ...PAID3, status: 5 } });
+  const disabled = await (await worker.default.fetch(req('/check?license_key=A24DIS&operation=ttfb&daily_used=0'), env)).json();
+  check('24 keyless: v4, free, no reason', [keyless.v, keyless.state, 'reason' in keyless], [4, 'free', false]);
+  check('24 disabled: v4, disabled, no reason', [disabled.v, disabled.state, 'reason' in disabled], [4, 'disabled', false]);
 });
 
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }

@@ -1459,7 +1459,6 @@ function wpsa_check_quota( $operation ) {
         'limit'      => (int) $body['limit'],
         'remaining'  => (int) $body['remaining'],
         'state'      => isset( $body['state'] ) ? (string) $body['state'] : '',
-        'reason'     => isset( $body['reason'] ) && null !== $body['reason'] ? (string) $body['reason'] : '',
         'status'     => $status,
         'expires_at' => isset( $body['expires_at'] ) && null !== $body['expires_at'] ? (string) $body['expires_at'] : '',
         'days_left'  => isset( $body['days_left'] ) && null !== $body['days_left'] ? (int) $body['days_left'] : null,
@@ -1479,18 +1478,19 @@ function wpsa_check_quota( $operation ) {
         update_option( 'wpsa_saved_tier', $incoming, false );
     }
 
-    // The expiry is the server's. A confirmed free/invalid answer carries no
-    // expires_at and must not be allowed to wipe the stored one (that was F2).
-    // A confirmed ACTIVE/GRACE answer with no expires_at means genuinely
-    // perpetual, and there the stored value should be cleared rather than left
-    // to bound the unverified snapshot on a date that no longer applies.
+    // The expiry and its grace date are the server's, and they move together. An
+    // answer without an expires_at must not wipe the stored dates. A confirmed
+    // ACTIVE/GRACE answer with no expires_at means genuinely perpetual, and there
+    // both stored dates are cleared rather than left to bound the unverified
+    // snapshot on a date that no longer applies.
     if ( '' !== $out['expires_at'] ) {
         update_option( 'wpsa_license_expiration', $out['expires_at'], false );
+        update_option( 'wpsa_license_grace_until', isset( $body['grace_until'] ) ? (string) $body['grace_until'] : '', false );
     } elseif ( 'active' === $out['state'] || 'grace' === $out['state'] ) {
         update_option( 'wpsa_license_expiration', '', false );
+        update_option( 'wpsa_license_grace_until', '', false );
     }
     update_option( 'wpsa_license_state',      $out['state'], false );
-    update_option( 'wpsa_license_reason',     $out['reason'], false );   // r3 Major 1
     update_option( 'wpsa_license_status',     $out['status'], false );
 
     // Anchored to the RECORD's age, not to receipt time, so a run of stale
@@ -1505,8 +1505,9 @@ function wpsa_check_quota( $operation ) {
  * The answer when nothing authoritative is available.
  *
  * Holds the last known paid tier, but never past what we already know we paid for:
- * expiry + grace when an expiry is known, otherwise 14 days from the last verified
- * record. Writes nothing except the status.
+ * the service's grace date when it is known, the expiry date alone when only that is
+ * known, otherwise 14 days from the last verified record. Writes nothing except the
+ * status.
  *
  * @param string $operation ttfb|pdf
  * @param string $cache_key transient key
@@ -1523,9 +1524,12 @@ function wpsa_license_unverified_snapshot( $operation, $cache_key ) {
 
     $tier = (string) get_option( 'wpsa_saved_tier', 'free' );
     if ( 'free' !== $tier ) {
-        $exp = (string) get_option( 'wpsa_license_expiration', '' );
-        if ( '' !== $exp ) {
-            $bound = strtotime( $exp . ' 23:59:59' ) + 7 * DAY_IN_SECONDS;
+        $grace = (string) get_option( 'wpsa_license_grace_until', '' );
+        $exp   = (string) get_option( 'wpsa_license_expiration', '' );
+        if ( '' !== $grace ) {
+            $bound = strtotime( $grace . ' 23:59:59' );
+        } elseif ( '' !== $exp ) {
+            $bound = strtotime( $exp . ' 23:59:59' ); // no grace without the service's date
         } else {
             $last  = (int) get_option( 'wpsa_license_last_verified', 0 );
             $bound = $last > 0 ? $last + 14 * DAY_IN_SECONDS : 0;
@@ -1550,7 +1554,6 @@ function wpsa_license_unverified_snapshot( $operation, $cache_key ) {
         'limit'     => $limit,
         'remaining' => $remaining,
         'state'     => (string) get_option( 'wpsa_license_state', '' ),
-        'reason'    => (string) get_option( 'wpsa_license_reason', '' ),
         'status'    => 'unverified',
     );
 }

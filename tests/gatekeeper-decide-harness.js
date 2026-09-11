@@ -1,4 +1,4 @@
-// Harness for the Gatekeeper v3 pure decision function.
+// Harness for the Gatekeeper v4 pure decision function.
 // Run: node tests/gatekeeper-decide-harness.js
 import { readFileSync } from 'node:fs';
 import { decide, normaliseHost, dlmStatus, shouldRefetch, RECHECK_MS } from '../cloudflare/gatekeeper/decide.js';
@@ -36,20 +36,16 @@ const ago8 = { ...AGENCY, expires_at: '2027-06-07 12:00:00' };
 check('AC-W4 state', d({ dlm: ago8 }).state, 'expired');
 check('AC-W4 tier',  d({ dlm: ago8 }).tier, 'free');
 
-// AC-W5 status 4 and 5 -> invalid. STATUS 1 IS DELIBERATELY ABSENT (see AC-W10).
-check('AC-W5 s4 state',  d({ dlm: { ...AGENCY, status: 4 } }).state,  'invalid');
-check('AC-W5 s4 reason', d({ dlm: { ...AGENCY, status: 4 } }).reason, 'inactive');
-check('AC-W5 s5 state',  d({ dlm: { ...AGENCY, status: 5 } }).state,  'invalid');
-check('AC-W5 s5 reason', d({ dlm: { ...AGENCY, status: 5 } }).reason, 'disabled');
+// AC-W5 status 4 and 5 -> their own states. STATUS 1 IS DELIBERATELY ABSENT (see AC-W10).
+check('AC-W5 s4 state', d({ dlm: { ...AGENCY, status: 4 } }).state, 'inactive');
+check('AC-W5 s5 state', d({ dlm: { ...AGENCY, status: 5 } }).state, 'disabled');
 
 // AC-W10 status 1 -> sold, NEVER invalid
 check('AC-W10 state',  d({ dlm: { ...AGENCY, status: 1 } }).state,  'sold');
-check('AC-W10 reason', d({ dlm: { ...AGENCY, status: 1 } }).reason, 'not_delivered');
 check('AC-W10 tier',   d({ dlm: { ...AGENCY, status: 1 } }).tier,   'free');
 
-// AC-W11 no record -> invalid/not_found
-check('AC-W11 state',  d({ dlm: null }).state,  'invalid');
-check('AC-W11 reason', d({ dlm: null }).reason, 'not_found');
+// AC-W11 no record -> not_found
+check('AC-W11 state', d({ dlm: null }).state, 'not_found');
 
 // AC-W6 unverified: no record available at all
 const unv = d({ dlm: null, status: 'unverified' });
@@ -103,7 +99,6 @@ check('exhausted',  d({ dailyUsed: 700 }).allowed, false);
 // Empty key
 const nokey = decide({ ...base, dlm: null, licenseKeyPresent: false });
 check('no key state',  nokey.state,  'free');
-check('no key reason', nokey.reason, 'no_key');
 check('no key tier',   nokey.tier,   'free');
 
 // AC-W16 the status guard survives a realistic wire shape.
@@ -133,8 +128,9 @@ check('AC-W17 3rd site denied',  d({ dlm: BIZ2, siteHost: 'c.com' }).allowed, fa
 // and the expiry notice, so this is what keeps the PHP side's input equal to what the
 // real producer returns: if decide() changes, the case that moved goes red here.
 const FIXTURE = JSON.parse(readFileSync(new URL('./_license-display-fixtures.json', import.meta.url), 'utf8'));
-check('display fixture: the five cases', FIXTURE.cases.map((c) => c.id),
-      ['grace_day_2', 'expired_40_days', 'boundary_10_days_1800', 'boundary_10_days_0000', 'active_200_days']);
+check('display fixture: the eleven cases', FIXTURE.cases.map((c) => c.id),
+      ['grace_day_2', 'expired_40_days', 'boundary_10_days_1800', 'boundary_10_days_0000', 'active_200_days',
+       'active_perpetual', 'sold_perpetual', 'not_found_foreign_product', 'inactive_perpetual', 'disabled_dated', 'free_no_key']);
 for (const c of FIXTURE.cases) {
   check(`display fixture ${c.id}: decide() still returns the stored answer`, decide(c.input), c.answer);
 }
@@ -149,7 +145,7 @@ for (const [label, raw] of [['0', 0], ['6', 6], ['missing', undefined], ['null',
   check(`dlmStatus rejects ${label}`, dlmStatus(raw), null);
 }
 
-// ---- shouldRefetch(): refetch a cached record early only when it is not active ----
+// ---- shouldRefetch(): refetch a cached record early only when a renewal can revive it ----
 check('RECHECK_MS is five minutes', RECHECK_MS, 5 * 60 * 1000);
 const EXPIRED_REC = { ...AGENCY, expires_at: '2027-05-01 12:00:00' }; // past grace at NOW
 const GRACE_REC   = { ...AGENCY, expires_at: '2027-06-13 12:00:00' }; // two days into grace
@@ -160,6 +156,57 @@ check('shouldRefetch expired, checked 1 ms short of RECHECK_MS: no', shouldRefet
 check('shouldRefetch expired, checked an hour ago: yes', shouldRefetch(EXPIRED_REC, NOW, NOW - 3600000), true);
 check('shouldRefetch grace counts as not active', shouldRefetch(GRACE_REC, NOW, NOW - RECHECK_MS), true);
 check('shouldRefetch sold counts as not active', shouldRefetch(SOLD_REC, NOW, NOW - RECHECK_MS), true);
+check('shouldRefetch grace: no before it', shouldRefetch(GRACE_REC, NOW, NOW - RECHECK_MS + 1), false);
+check('shouldRefetch sold: no before it', shouldRefetch(SOLD_REC, NOW, NOW - RECHECK_MS + 1), false);
+const INACTIVE_REC = { ...AGENCY, status: 4 };
+const DISABLED_REC = { ...AGENCY, status: 5 };
+const FOREIGN      = { ...AGENCY, product_id: 99999 }; // a product outside the tier map
+check('shouldRefetch inactive: yes once RECHECK_MS has passed', shouldRefetch(INACTIVE_REC, NOW, NOW - RECHECK_MS), true);
+check('shouldRefetch inactive: no before it', shouldRefetch(INACTIVE_REC, NOW, NOW - RECHECK_MS + 1), false);
+for (const [label, rec] of [['disabled', DISABLED_REC], ['not_found (another product)', FOREIGN]]) {
+  check(`shouldRefetch ${label}: no, an hour after the last check`, shouldRefetch(rec, NOW, NOW - 3600000), false);
+  check(`shouldRefetch ${label}: no, 5 h after the last check`, shouldRefetch(rec, NOW, NOW - 5 * 3600000), false);
+}
+
+// ---- Contract v4: one state, no reason, a version marker, the grace date ----
+// Every answer carries v:4, keyless included.
+for (const [label, r] of [['keyless', nokey], ['ok', d()], ['stale', st], ['unverified', unv]]) {
+  check(`v4 marker, ${label}`, r.v, 4);
+}
+// No answer carries a reason field.
+const every = [nokey, d(), st, unv, d({ dlm: ago3 }), d({ dlm: ago8 }), d({ dlm: null }),
+  d({ dlm: { ...AGENCY, status: 1 } }), d({ dlm: { ...AGENCY, status: 4 } }), d({ dlm: { ...AGENCY, status: 5 } }), d({ dlm: FOREIGN })];
+check('no answer has a reason key', every.filter((r) => 'reason' in r).length, 0);
+// The state table, row by row.
+for (const [label, dlm, state] of [
+  ['status 1', { ...AGENCY, status: 1 }, 'sold'],
+  ['status 4', { ...AGENCY, status: 4 }, 'inactive'],
+  ['status 5', { ...AGENCY, status: 5 }, 'disabled'],
+  ['status "4" (numeric string)', { ...AGENCY, status: '4' }, 'inactive'],
+  ['status 2, no expiry', { ...AGENCY, status: 2 }, 'active'],
+  ['status 3, 5 days left', in5, 'active'],
+  ['status 3, 3 days past expiry', ago3, 'grace'],
+  ['status 3, 8 days past expiry', ago8, 'expired'],
+  ['another product, no expiry', FOREIGN, 'not_found'],
+  ['another product, 3 days past expiry', { ...FOREIGN, expires_at: ago3.expires_at }, 'not_found'],
+  ['another product, 8 days past expiry', { ...FOREIGN, expires_at: ago8.expires_at }, 'expired'],
+  ['no record', null, 'not_found'],
+]) check(`state table, ${label}`, d({ dlm }).state, state);
+check('state table, no key', nokey.state, 'free');
+// grace_until = expiry + 7 days whenever an expiry is known; null without one.
+check('grace date, active with an expiry', d({ dlm: in5 }).grace_until, '2027-06-27');
+check('grace date, grace (the same date as before)', d({ dlm: ago3 }).grace_until, '2027-06-19');
+check('grace date, expired', d({ dlm: ago8 }).grace_until, '2027-06-14');
+check('grace date, disabled with an expiry', d({ dlm: { ...in5, status: 5 } }).grace_until, '2027-06-27');
+check('grace date, sold with an expiry', d({ dlm: { ...in5, status: 1 } }).grace_until, '2027-06-27');
+check('grace date, inactive with an expiry', d({ dlm: { ...in5, status: 4 } }).grace_until, '2027-06-27');
+check('grace date, not_found (another product) with an expiry', d({ dlm: { ...FOREIGN, expires_at: in5.expires_at } }).grace_until, '2027-06-27');
+check('grace date, no expiry', d().grace_until, null);
+check('grace date, no record', d({ dlm: null }).grace_until, null);
+// The shared fixture carries every v4 state.
+check('the fixture carries every v4 state',
+      [...new Set(FIXTURE.cases.map((c) => c.answer.state))].sort(),
+      ['active', 'disabled', 'expired', 'free', 'grace', 'inactive', 'not_found', 'sold']);
 
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
 console.log('gatekeeper decide harness passed');

@@ -1,5 +1,6 @@
 <?php
 declare( strict_types=1 );
+date_default_timezone_set( 'UTC' ); // WordPress runs PHP in UTC; the date checks below assume the same.
 require __DIR__ . '/../includes/license-notice.php';   // pure helpers only, guarded by function_exists
 
 $fails = 0;
@@ -14,13 +15,15 @@ ok( 'AC-N1 3d shows',   wpsa_license_notice_should_show( 'active', 3, null ),  t
 ok( 'AC-N2 suppressed at 6d', wpsa_license_notice_should_show( 'active', 6, 8 ), false );
 ok( 'AC-N2 re-shows at 3d',   wpsa_license_notice_should_show( 'active', 3, 8 ), true );
 
-// AC-N3 grace is never dismissible; AC-N6 sold is never dismissible.
-// expired/invalid pinned too (r-B5F2) -- mutation-proved: dropping either
-// from the exclusion array in wpsa_license_notice_is_dismissible() left the
-// suite green until these two were added.
+// The states that need the customer's attention are never dismissible: grace,
+// expired, not_found, inactive, disabled and sold. Each has its own check here,
+// so dropping any one of them from the list in
+// wpsa_license_notice_is_dismissible() turns that state's check red.
 ok( 'AC-N3 grace not dismissible',    wpsa_license_notice_is_dismissible( 'grace' ),    false );
 ok( 'r-B5F2 expired not dismissible', wpsa_license_notice_is_dismissible( 'expired' ),  false );
-ok( 'r-B5F2 invalid not dismissible', wpsa_license_notice_is_dismissible( 'invalid' ),  false );
+ok( 'not_found not dismissible', wpsa_license_notice_is_dismissible( 'not_found' ), false );
+ok( 'inactive not dismissible',  wpsa_license_notice_is_dismissible( 'inactive' ),  false );
+ok( 'disabled not dismissible',  wpsa_license_notice_is_dismissible( 'disabled' ),  false );
 ok( 'AC-N6 sold not dismissible',     wpsa_license_notice_is_dismissible( 'sold' ),     false );
 ok( 'active is dismissible',          wpsa_license_notice_is_dismissible( 'active' ),   true );
 
@@ -29,7 +32,7 @@ ok( 'AC-N5 unknown silent', wpsa_license_notice_should_show( 'unknown', null, nu
 ok( 'free silent',          wpsa_license_notice_should_show( 'free', null, null ),    false );
 
 // non-active states always show
-foreach ( array( 'grace', 'expired', 'invalid', 'sold' ) as $s ) {
+foreach ( array( 'grace', 'expired', 'not_found', 'inactive', 'disabled', 'sold' ) as $s ) {
     ok( "$s shows", wpsa_license_notice_should_show( $s, null, 1 ), true );
 }
 
@@ -55,24 +58,18 @@ ok( 'days_left 4 days past (grace)', wpsa_license_notice_days_left( '2026-12-28'
 ok( 'days_left empty is null', wpsa_license_notice_days_left( '', $jan1_2027 ), null );
 ok( 'days_left unparseable is null', wpsa_license_notice_days_left( 'not-a-date', $jan1_2027 ), null );
 
-// wpsa_license_notice_grace_days_left(): D4's 7-day courtesy window, clamped at 0.
-ok( 'grace days_left 4d past expiry -> 3 remaining', wpsa_license_notice_grace_days_left( -4 ), 3 );
-ok( 'grace days_left 7d past expiry -> 0 remaining (clamped)', wpsa_license_notice_grace_days_left( -7 ), 0 );
-ok( 'grace days_left 10d past expiry -> 0 remaining (clamped, not negative)', wpsa_license_notice_grace_days_left( -10 ), 0 );
-ok( 'grace days_left null propagates', wpsa_license_notice_grace_days_left( null ), null );
-
 // wpsa_license_notice_template(): copy/button selection, mirrors lpanel.php §5.3.
-ok( 'template active',  wpsa_license_notice_template( 'active', '' ),  array( 'template' => 'active',  'button' => 'renew' ) );
-ok( 'template grace',   wpsa_license_notice_template( 'grace', '' ),   array( 'template' => 'grace',   'button' => 'renew' ) );
-ok( 'template expired', wpsa_license_notice_template( 'expired', '' ), array( 'template' => 'expired', 'button' => 'renew' ) );
-ok( 'template invalid (generic reason)',    wpsa_license_notice_template( 'invalid', 'inactive' ),  array( 'template' => 'invalid',           'button' => 'renew' ) );
-ok( 'template invalid (disabled reason)',   wpsa_license_notice_template( 'invalid', 'disabled' ),  array( 'template' => 'invalid',           'button' => 'renew' ) );
+ok( 'template active',  wpsa_license_notice_template( 'active' ),  array( 'template' => 'active',  'button' => 'renew' ) );
+ok( 'template grace',   wpsa_license_notice_template( 'grace' ),   array( 'template' => 'grace',   'button' => 'renew' ) );
+ok( 'template expired', wpsa_license_notice_template( 'expired' ), array( 'template' => 'expired', 'button' => 'renew' ) );
+ok( 'template inactive -> invalid, renew', wpsa_license_notice_template( 'inactive' ), array( 'template' => 'invalid', 'button' => 'renew' ) );
+ok( 'template disabled -> invalid, renew', wpsa_license_notice_template( 'disabled' ), array( 'template' => 'invalid', 'button' => 'renew' ) );
 // r-B5F1: a mistyped key is a typo, not a lapse (spec §5.3 line 357) -- no
 // action button at all, matching lpanel.php's own no-button treatment of
 // this row. Distinguished from the two 'renew' assertions directly above.
-ok( 'r-B5F1 template invalid (not_found reason) -> no button', wpsa_license_notice_template( 'invalid', 'not_found' ), array( 'template' => 'invalid_not_found', 'button' => 'none' ) );
+ok( 'template not_found -> no button', wpsa_license_notice_template( 'not_found' ), array( 'template' => 'invalid_not_found', 'button' => 'none' ) );
 // AC-N6: sold gets Contact and never Renew.
-ok( 'AC-N6 template sold -> contact, never renew', wpsa_license_notice_template( 'sold', '' ), array( 'template' => 'sold', 'button' => 'contact' ) );
+ok( 'AC-N6 template sold -> contact, never renew', wpsa_license_notice_template( 'sold' ), array( 'template' => 'sold', 'button' => 'contact' ) );
 
 // P17 — production activation path: prove the real days-left computation
 // (not a hand-picked int) correctly feeds wpsa_license_notice_should_show().
@@ -98,6 +95,43 @@ ok(
     wpsa_license_notice_should_show( 'active', wpsa_license_notice_days_left( $exp_3d, $jan1_2027 ), 8 ),
     true
 );
+
+// Every state the service sends, from decide()'s own answers (tests/_license-display-fixtures.json).
+$fx     = json_decode( (string) file_get_contents( __DIR__ . '/_license-display-fixtures.json' ), true );
+$states = array();
+foreach ( $fx['cases'] as $c ) {
+    $states[ $c['answer']['state'] ] = true;
+}
+$expect = array(
+    // state => array( shows with no date and no dismissal, dismissible, template, button )
+    'sold'      => array( true,  false, 'sold',              'contact' ),
+    'not_found' => array( true,  false, 'invalid_not_found', 'none' ),
+    'inactive'  => array( true,  false, 'invalid',           'renew' ),
+    'disabled'  => array( true,  false, 'invalid',           'renew' ),
+    'grace'     => array( true,  false, 'grace',             'renew' ),
+    'expired'   => array( true,  false, 'expired',           'renew' ),
+    'active'    => array( false, true,  'active',            'renew' ), // shows only within 10 days (the 10-day checks at the top of this file)
+    'free'      => array( false, true,  null,                null ),
+);
+ok( 'the fixture carries all eight states', count( $states ), 8 );
+foreach ( array_keys( $states ) as $s ) {
+    ok( "$s is a state this notice knows", isset( $expect[ $s ] ), true );
+    if ( ! isset( $expect[ $s ] ) ) {
+        continue;
+    }
+    list( $shows, $dismissible, $tpl, $btn ) = $expect[ $s ];
+    ok( "$s shows (no date, never dismissed)", wpsa_license_notice_should_show( $s, null, null ), $shows );
+    ok( "$s dismissible", wpsa_license_notice_is_dismissible( $s ), $dismissible );
+    if ( null !== $tpl ) {
+        ok( "$s template", wpsa_license_notice_template( $s ), array( 'template' => $tpl, 'button' => $btn ) );
+    }
+}
+ok( "'' never shows", wpsa_license_notice_should_show( '', null, null ), false );
+// 'unknown' (what an upgrade leaves until the first check) and '' are the two states
+// the fixture does not carry. Neither shows a notice; if one ever did, the customer
+// could close it.
+ok( 'unknown is dismissible', wpsa_license_notice_is_dismissible( 'unknown' ), true );
+ok( "'' is dismissible",      wpsa_license_notice_is_dismissible( '' ),        true );
 
 if ( $fails ) { fwrite( STDERR, "$fails check(s) failed\n" ); exit( 1 ); }
 echo "license notice harness passed\n";

@@ -60,7 +60,7 @@ const WPSA_LICENSE_OPTIONS_VERSION = '1.19.1';
  * Pre-1.19.1 installs carry a locally fabricated expiry ("+1 month" at
  * activation) that corresponds to nothing on the server. 1.19.1 reads that
  * option as the authoritative expiry, so it must be discarded rather than
- * inherited. Until the first v3 answer arrives the expiry is unknown, which
+ * inherited. Until the licence service's first answer arrives the expiry is unknown, which
  * the unverified snapshot treats conservatively.
  *
  * @return bool True when the migration ran, false when it was already done.
@@ -71,6 +71,7 @@ function wpsa_maybe_migrate_license_options() {
         return false;
     }
     delete_option( 'wpsa_license_expiration' );
+    delete_option( 'wpsa_license_grace_until' ); // travels with the expiry
     update_option( 'wpsa_license_state',  'unknown', false );
     update_option( 'wpsa_license_status', 'unverified', false );
     update_option( 'wpsa_license_last_verified', 0, false );
@@ -436,7 +437,7 @@ function wpsa_handle_license_form() {
         delete_option( 'wpsa_license_key' );
         delete_option( 'wpsa_license_activation_token' );
         // wpsa_render_license_notice() reads state directly, never key
-        // presence — grace/expired/invalid/sold are shown and NOT
+        // presence — grace/expired/not_found/inactive/disabled/sold are shown and NOT
         // dismissible, so a deactivated site with no key must not be left on
         // a stale non-free state or it shows a permanent "expired" banner.
         update_option( 'wpsa_license_state', 'free' );
@@ -529,8 +530,8 @@ if ( isset( $_POST['wpsa_activate_license'] ) ) {
     update_option( 'wpsa_license_activation_token', isset( $body['token'] ) ? (string) $body['token'] : '' );
     update_option( 'wpsa_saved_tier', isset( $body['tier'] ) ? (string) $body['tier'] : 'free' );
     update_option( 'wpsa_license_expiration', isset( $body['expires_at'] ) && null !== $body['expires_at'] ? (string) $body['expires_at'] : '' );
+    update_option( 'wpsa_license_grace_until', isset( $body['expires_at'], $body['grace_until'] ) && '' !== (string) $body['expires_at'] ? (string) $body['grace_until'] : '' );
     update_option( 'wpsa_license_state', isset( $body['state'] ) ? (string) $body['state'] : '' );
-    update_option( 'wpsa_license_reason', isset( $body['reason'] ) && null !== $body['reason'] ? (string) $body['reason'] : '' );
     update_option( 'wpsa_license_status', isset( $body['status'] ) ? (string) $body['status'] : '' );
     // Anchored to the record's own age, matching wpsa_check_quota()'s write
     // (includes/helpers.php) — never to receipt time.

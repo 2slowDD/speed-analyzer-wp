@@ -1,4 +1,4 @@
-=== Speed Analyzer – WordPress Speed Test & Performance Audit ===
+=== Speed Analyzer – Speed Test & Performance Audit ===
 Contributors: dalibord
 Donate link: https://wpservice.pro/donate/
 Tags: speed test, pagespeed insights, core web vitals, performance audit, ttfb

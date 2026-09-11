@@ -27,7 +27,7 @@ if ( 'cli' !== PHP_SAPI && ! defined( 'ABSPATH' ) ) {
  * The stand-in database, plus a log of side effects in the order they happened.
  */
 final class DLMY_Store {
-    /** @var array Order id => array( 'user_id' => int, 'items' => int[], 'meta' => array( key => stored value ) ). */
+    /** @var array Order id => array( 'user_id' => int, 'items' => int[], 'meta' => array( key => stored value ), 'status' => string ). */
     public static $orders = array();
     /** @var array Item id => array( 'product_id' => int, 'quantity' => int, 'meta' => array( key => stored value ) ). */
     public static $items = array();
@@ -47,12 +47,13 @@ final class DLMY_Store {
     }
 
     /**
-     * @param int   $order_id Order id.
-     * @param int   $user_id  Customer's user id; 0 for a guest order.
-     * @param array $lines    Item id => array( product id, quantity ).
+     * @param int    $order_id Order id.
+     * @param int    $user_id  Customer's user id; 0 for a guest order.
+     * @param array  $lines    Item id => array( product id, quantity ).
+     * @param string $status   Order status without the 'wc-' prefix; 'processing' unless a case needs another.
      */
-    public static function add_order( $order_id, $user_id, array $lines ) {
-        self::$orders[ $order_id ] = array( 'user_id' => $user_id, 'items' => array_keys( $lines ), 'meta' => array() );
+    public static function add_order( $order_id, $user_id, array $lines, $status = 'processing' ) {
+        self::$orders[ $order_id ] = array( 'user_id' => $user_id, 'items' => array_keys( $lines ), 'meta' => array(), 'status' => $status );
         foreach ( $lines as $item_id => $line ) {
             self::$items[ $item_id ] = array( 'product_id' => $line[0], 'quantity' => $line[1], 'meta' => array() );
         }
@@ -251,6 +252,8 @@ class WC_Order extends WC_Data {
     private $user_id;
     /** @var WC_Order_Item_Product[]|null Lines, once read. */
     private $items = null;
+    /** @var string Order status, without the 'wc-' prefix. */
+    private $status;
 
     /**
      * @param int $order_id Order id; the order is built from storage.
@@ -258,11 +261,26 @@ class WC_Order extends WC_Data {
     public function __construct( $order_id = 0 ) {
         $this->id      = (int) $order_id;
         $this->user_id = DLMY_Store::$orders[ $this->id ]['user_id'];
+        $this->status  = isset( DLMY_Store::$orders[ $this->id ]['status'] ) ? DLMY_Store::$orders[ $this->id ]['status'] : 'processing';
         $this->read_meta_data( DLMY_Store::$orders[ $this->id ]['meta'] );
     }
 
     public function get_user_id() {
         return $this->user_id;
+    }
+
+    /** get_status(): the order's status without the 'wc-' prefix. */
+    public function get_status( $context = 'view' ) {
+        return $this->status;
+    }
+
+    /**
+     * is_paid() (class-wc-order.php:1724-1726): the status is one of wc_get_is_paid_statuses(),
+     * passed through the 'woocommerce_order_is_paid' filter. WooCommerce reaches the list through
+     * has_status(); the stand-in compares directly.
+     */
+    public function is_paid() {
+        return apply_filters( 'woocommerce_order_is_paid', in_array( $this->status, wc_get_is_paid_statuses(), true ), $this );
     }
 
     /**
@@ -319,6 +337,20 @@ class WC_Order extends WC_Data {
  */
 function wc_get_order( $order_id ) {
     return isset( DLMY_Store::$orders[ (int) $order_id ] ) ? new WC_Order( $order_id ) : false;
+}
+
+/** WC wc_get_is_paid_statuses() (wc-order-functions.php:134-143): processing and completed, filterable. */
+function wc_get_is_paid_statuses() {
+    return apply_filters( 'woocommerce_order_is_paid_statuses', array( 'processing', 'completed' ) );
+}
+
+/**
+ * WP sanitize_key() (formatting.php): lowercase, then drop every character outside
+ * a-z, 0-9, underscore and hyphen, through the 'sanitize_key' filter.
+ */
+function sanitize_key( $key ) {
+    $sanitized = preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+    return apply_filters( 'sanitize_key', $sanitized, $key );
 }
 
 /**

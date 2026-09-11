@@ -11,7 +11,7 @@ if ( 'cli' !== PHP_SAPI && ! defined( 'ABSPATH' ) ) { exit; }
 // pattern as tests/license-state-harness.php.
 //
 // When you add or remove a check on purpose, update this number.
-define( 'DLMY_EXPECTED_CHECKS', 303 );
+define( 'DLMY_EXPECTED_CHECKS', 320 );
 
 $GLOBALS['dlmy_reached_end'] = false;
 register_shutdown_function( function () {
@@ -88,16 +88,22 @@ ok( 'key from this same order is ignored', picked_id( array( row( 31, 3, $d, 900
 ok( 'key from an earlier order is chosen', picked_id( array( row( 31, 3, $d, 800 ) ), 900 ), 31 );
 
 // ---- Whether to act on an order line ----------------------------------------
-ok( 'first purchase of a plan is looked up', wpsa_dlmy_rebuy_step( true, 11208, 5, 1, '' ), 'lookup' );
+ok( 'first purchase of a plan is looked up', wpsa_dlmy_rebuy_step( true, 11208, 5, 1, '', true ), 'lookup' );
 foreach ( array( 11208, 11413, 11414 ) as $pid ) {
-    ok( "product $pid is a Speed Analyzer plan", wpsa_dlmy_rebuy_step( true, $pid, 5, 1, '' ), 'lookup' );
+    ok( "product $pid is a Speed Analyzer plan", wpsa_dlmy_rebuy_step( true, $pid, 5, 1, '', true ), 'lookup' );
 }
-ok( 'other products are left to DLM', wpsa_dlmy_rebuy_step( true, 999, 5, 1, '' ), 'pass' );
+ok( 'other products are left to DLM', wpsa_dlmy_rebuy_step( true, 999, 5, 1, '', true ), 'pass' );
 // Guest licences are all stored under user id 0, so a guest must never be matched.
-ok( 'guest orders are left to DLM', wpsa_dlmy_rebuy_step( true, 11208, 0, 1, '' ), 'pass' );
-ok( 'multi-unit lines are left to DLM', wpsa_dlmy_rebuy_step( true, 11208, 5, 2, '' ), 'pass' );
-ok( 'an earlier skip by other code is respected', wpsa_dlmy_rebuy_step( false, 11208, 5, 1, '' ), 'pass' );
-ok( 'a recorded extension stops a second one', wpsa_dlmy_rebuy_step( true, 11208, 5, 1, '42' ), 'done' );
+ok( 'guest orders are left to DLM', wpsa_dlmy_rebuy_step( true, 11208, 0, 1, '', true ), 'pass' );
+ok( 'multi-unit lines are left to DLM', wpsa_dlmy_rebuy_step( true, 11208, 5, 2, '', true ), 'pass' );
+ok( 'an earlier skip by other code is respected', wpsa_dlmy_rebuy_step( false, 11208, 5, 1, '', true ), 'pass' );
+ok( 'a recorded extension stops a second one', wpsa_dlmy_rebuy_step( true, 11208, 5, 1, '42', true ), 'done' );
+// Only a paid order extends a licence. The check runs after the replay mark, so a line
+// handled while the order was paid stays handled whatever the order's status is now.
+ok( 'an unpaid order is left to DLM', wpsa_dlmy_rebuy_step( true, 11208, 5, 1, '', false ), 'unpaid' );
+ok( 'an unpaid order with a handled line still issues no key', wpsa_dlmy_rebuy_step( true, 11208, 5, 1, '42', false ), 'done' );
+ok( 'an unpaid order DLM already skipped is still respected', wpsa_dlmy_rebuy_step( false, 11208, 5, 1, '', false ), 'pass' );
+ok( 'an unpaid order for another product is left to DLM', wpsa_dlmy_rebuy_step( true, 999, 5, 1, '', false ), 'pass' );
 
 // ---- Order lines, then the same order replayed ------------------------------------
 ok( 'meta key names the product', wpsa_dlmy_extension_meta_key( 11208 ), '_wpsa_license_extended_11208' );
@@ -109,7 +115,7 @@ $run   = function () use ( $lines, &$meta ) {
     $out = array( 'extended' => array(), 'done' => array() );
     foreach ( $lines as $line => $pid ) {
         $key  = wpsa_dlmy_extension_meta_key( $pid );
-        $step = wpsa_dlmy_rebuy_step( true, $pid, 5, 1, isset( $meta[ $line ][ $key ] ) ? $meta[ $line ][ $key ] : '' );
+        $step = wpsa_dlmy_rebuy_step( true, $pid, 5, 1, isset( $meta[ $line ][ $key ] ) ? $meta[ $line ][ $key ] : '', true );
         if ( 'lookup' === $step ) {
             $meta[ $line ][ $key ] = 100 + $pid;
             $out['extended'][]     = $line;
@@ -255,9 +261,9 @@ function lic( $id, $status, $expires, $order_id = 800, $user_id = 5, $product_id
         'license_key' => 'ABCD-EFGH-IJKL',
     );
 }
-function shop( array $lines, array $licences, $mode = 'ok', $user_id = 5, $order_id = 900 ) {
+function shop( array $lines, array $licences, $mode = 'ok', $user_id = 5, $order_id = 900, $status = 'processing' ) {
     DLMY_Store::reset();
-    DLMY_Store::add_order( $order_id, $user_id, $lines );
+    DLMY_Store::add_order( $order_id, $user_id, $lines, $status );
     DLMY_Licenses::reset( $licences, $mode );
 }
 function dlm_run( $order_id = 900, array $start = array() ) { return dlmy_dlm_generate_order_licenses( $order_id, $start ); }
@@ -474,6 +480,60 @@ ok( 'loaded after DLM booted: the creation filter is registered at once', dlmy_h
     array( array( 'callback' => 'wpsa_dlmy_filter', 'priority' => 99, 'accepted_args' => 4 ) ) );
 ok( 'loaded after DLM booted: nothing waits on dlm_boot', dlmy_hooked( 'dlm_boot' ), array() );
 
+// ---- An order that is not paid -----------------------------------------------------
+// DLM acts only on the statuses ticked in its settings. If an unpaid one is ever ticked, the
+// callback steps aside and DLM does exactly what it would do without this plugin.
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ), 'ok', 5, 900, 'on-hold' );
+$r = dlm_run();
+ok( 'unpaid: DLM decides as usual', $r['answers'], array( 501 => true ) );
+ok( 'unpaid: DLM issues its own key', $r['minted'], array( 501 ) );
+ok( 'unpaid: no licence write', writes(), array() );
+ok( 'unpaid: no order note', array( notes( 900, 0 ), notes( 900, 1 ) ), array( array(), array() ) );
+ok( 'unpaid: the line is not marked', marker( 501 ), null );
+
+// "completed" counts as paid too.
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ), 'ok', 5, 900, 'completed' );
+$r = dlm_run();
+ok( 'completed: extended, no key issued', array( $r['answers'], count( writes() ) ), array( array( 501 => false ), 1 ) );
+
+// A line extended while the order was paid stays handled after a refund.
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ) );
+dlm_run();
+DLMY_Store::$orders[900]['status'] = 'refunded';
+$r = dlm_run();
+ok( 'refunded after extension: still no key issued', $r['answers'], array( 501 => false ) );
+ok( 'refunded after extension: the licence is not written again', count( writes() ), 1 );
+
+// WooCommerce's own paid-status list decides, not a list kept by this plugin.
+add_filter( 'woocommerce_order_is_paid_statuses', function ( $statuses ) {
+    $statuses[] = 'on-hold';
+    return $statuses;
+} );
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ), 'ok', 5, 900, 'on-hold' );
+$r = dlm_run();
+ok( 'a status the shop counts as paid extends', $r['answers'], array( 501 => false ) );
+unset( $GLOBALS['dlmy_hooks']['woocommerce_order_is_paid_statuses'] );
+
+// DLM's own value comes back from an unpaid order exactly as DLM sent it.
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ), 'ok', 5, 900, 'on-hold' );
+$r = dlm_run( 900, array( 501 => 1 ) );
+ok( "unpaid: DLM's own value comes back unchanged", $r['answers'], array( 501 => 1 ) );
+
+// A paid check that throws (a third-party filter on it) never turns a line an earlier run
+// handled into a second key. A line not yet handled is left to DLM, which issues its key.
+$throwing_paid = function () { throw new RuntimeException( 'paid check failed' ); };
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ) );
+dlm_run();
+add_filter( 'woocommerce_order_is_paid', $throwing_paid );
+$r = dlm_run();
+ok( 'a failing paid check: a handled line still issues no key and is not written again',
+    array( $r['answers'], $r['minted'], count( writes() ) ), array( array( 501 => false ), array(), 1 ) );
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ) );
+$r = dlm_run();
+ok( 'a failing paid check: a line not yet handled is left to DLM',
+    array( $r['answers'], $r['minted'], writes(), marker( 501 ) ), array( array( 501 => true ), array( 501 ), array(), null ) );
+unset( $GLOBALS['dlmy_hooks']['woocommerce_order_is_paid'] );
+
 // ---- The debug log names the exception class, never its message --------------------
 // A message carries whatever the failing code put in it, and the log is meant to hold ids
 // only. With WP_DEBUG on and PHP's error log pointed at a temporary file, the two failure
@@ -496,6 +556,21 @@ ok( 'debug log: a failed licence update logs the class, not the message',
     array( true, false ) );
 ok( 'debug log: no log line in the plugin can carry an exception message',
     substr_count( (string) file_get_contents( __DIR__ . '/../cloudflare/mu-plugins/wpsa-dlm-yearly.php' ), 'getMessage' ), 0 );
+// An unpaid run, then a paid run, in one capture window. Every other log call in the plugin
+// sits in a catch, so a paid run that succeeds logs nothing, and the whole window must be one
+// line: PHP's own [timestamp] prefix, then the order id and its status and nothing else.
+// Lines are split on any line break: error_log() ends them with CRLF on Windows.
+$log_file = tempnam( sys_get_temp_dir(), 'dlmy' );
+ini_set( 'error_log', $log_file );
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ), 'ok', 5, 900, 'on-hold' );
+dlm_run();
+shop( array( 501 => array( 11208, 1 ) ), array( lic( 7, 2, $far ) ) );
+dlm_run();
+$log = (string) file_get_contents( $log_file );
+unlink( $log_file );
+ok( 'debug log: an unpaid run and a paid run leave exactly one line, the order id and its status and nothing else',
+    preg_replace( '/^\[[^\]]+\] /', '', preg_split( '/\R/', trim( $log ) ) ),
+    array( 'wpsa-dlm-yearly: order 900: not paid (status on-hold), left to DLM' ) );
 
 // Check-count gate. Not routed through ok(), which would change the number it checks.
 if ( DLMY_EXPECTED_CHECKS !== $checks ) {

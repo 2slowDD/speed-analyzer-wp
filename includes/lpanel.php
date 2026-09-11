@@ -32,19 +32,19 @@ function wpsa_render_license_panel_ui() {
     $quota  = wpsa_check_quota( 'ttfb' );
     $tier   = isset( $quota['tier'] ) ? (string) $quota['tier'] : 'free';
     $state  = isset( $quota['state'] ) ? (string) $quota['state'] : '';
-    $reason = isset( $quota['reason'] ) ? (string) $quota['reason'] : '';
     $status = isset( $quota['status'] ) ? (string) $quota['status'] : '';
     $sites  = isset( $quota['sites'] ) && is_array( $quota['sites'] ) ? $quota['sites'] : array();
     $expires_at = isset( $quota['expires_at'] ) ? (string) $quota['expires_at'] : '';
 
     // ── Plan name and days number, shared with the licence notice ──
-    // Both stored values are read after the check above, because that check may
-    // just have rewritten them: the expiry on a renewal, and the plan that lapsed
-    // on the first answer that reports it. The days never come from the service's
-    // days_left, which stays at 0 for the whole grace week.
+    // The stored values are read after the check above, because that check may
+    // just have rewritten them: the expiry and its grace date on a renewal, and
+    // the plan that lapsed on the first answer that reports it. The days never
+    // come from the service's days_left, which stays at 0 for the whole grace week.
     $last_paid_tier = (string) get_option( 'wpsa_last_paid_tier', '' );
     $expiration     = (string) get_option( 'wpsa_license_expiration', '' );
-    $display        = wpsa_license_display( $state, $tier, $last_paid_tier, $expiration );
+    $grace_until    = (string) get_option( 'wpsa_license_grace_until', '' );
+    $display        = wpsa_license_display( $state, $tier, $last_paid_tier, $expiration, $grace_until );
     $label          = $display['label'];
     $days           = $display['days'];
 
@@ -54,9 +54,9 @@ function wpsa_render_license_panel_ui() {
         $status_text = $label; // post-upgrade, pre-first-check: no date, no warning
     } elseif ( 'sold' === $state ) {
         $status_text = __( 'Your licence has been paid for but not yet delivered. Please contact support.', 'speed-analyzer' );
-    } elseif ( 'invalid' === $state && 'not_found' === $reason ) {
+    } elseif ( 'not_found' === $state ) {
         $status_text = __( "We don't recognise that licence key — check it for typos", 'speed-analyzer' );
-    } elseif ( 'invalid' === $state ) {
+    } elseif ( in_array( $state, array( 'inactive', 'disabled' ), true ) ) {
         $status_text = __( 'This licence is no longer active', 'speed-analyzer' );
     } elseif ( 'grace' === $state ) {
         $status_text = sprintf(
@@ -90,7 +90,7 @@ function wpsa_render_license_panel_ui() {
     // customer's attention, a check for a confirmed paid licence, none for
     // free/unknown. Not specified by the brief; kept for visual continuity
     // with the pre-B4 panel and driven only by $state, never by copy.
-    if ( in_array( $state, array( 'sold', 'invalid', 'grace', 'expired' ), true ) ) {
+    if ( in_array( $state, array( 'sold', 'not_found', 'inactive', 'disabled', 'grace', 'expired' ), true ) ) {
         $icon = '<span class="icon" style="color:#d32f2f;">⚠️</span>';
     } elseif ( 'active' === $state ) {
         $icon = '<span class="icon" style="color:#388e3c;">✅</span>';
