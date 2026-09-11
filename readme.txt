@@ -63,12 +63,14 @@ View current limits and pricing:
 
 == External Services ==
 
-Speed Analyzer performs WordPress-specific database and server checks locally. When you start a speed test, or when a scheduled test runs, selected modules connect to a managed WPservice analysis service and Google PageSpeed Insights.
+Speed Analyzer performs WordPress-specific database and server checks locally. When you start a speed test, or when a scheduled test runs, selected modules connect to a managed WPservice analysis service and Google PageSpeed Insights. If you enter a license key, the plugin also contacts the WPservice license service to activate the license and to check its status and daily allowance.
 
 = WPservice hosted analysis service =
 
-Endpoint:
-[https://globalwpspeed.dalibord79.workers.dev/](https://globalwpspeed.dalibord79.workers.dev/)
+Endpoints (the plugin alternates between the two):
+
+* [https://globalwpspeed.dalibord79.workers.dev/](https://globalwpspeed.dalibord79.workers.dev/)
+* [https://globalwpspeed1.dalibord79.workers.dev/](https://globalwpspeed1.dalibord79.workers.dev/)
 
 The hosted service is used for:
 
@@ -141,7 +143,7 @@ The remote tests use hosted infrastructure and external API quotas. Limits reset
 
 = What is sent to external services? =
 
-The tested public URL is sent for TTFB checks. PageSpeed tests also send the selected mobile or desktop strategy. WordPress-specific information such as your autoloaded-options list, active-plugins list, and database details is processed locally and is not needed by the remote PageSpeed or TTFB tests.
+The tested public URL is sent for TTFB checks. PageSpeed tests also send the selected mobile or desktop strategy. WordPress-specific information such as your autoloaded-options list, active-plugins list, and database details is processed locally and is not needed by the remote PageSpeed or TTFB tests. If you enter a license key, the key, your site URL, the operation being checked and today's usage count are sent to the WPservice license service; deactivating a license sends the key and its activation token. Sites without a license key never contact the license service.
 
 = Where are my saved test results stored? =
 
@@ -176,7 +178,7 @@ Total Blocking Time is a Lighthouse lab metric used in PageSpeed performance tes
 = 1.19.1 =
 * Pro, Business, and Agency plans are now yearly.
 * A temporary license-service outage no longer downgrades a paid site to Free; the License panel now says the service could not be reached.
-* The License panel shows why a license is not active, such as a mistyped key or an expired license.
+* The License panel shows why a license is not active, such as an expired or disabled license.
 * Added a warning 10 days before a license expires, followed by a 7-day grace period at full access.
 * Activation explains why it failed and uses the license's real expiry date; deactivation frees the site's license slot.
 * Sites over their plan's site limit are told why and offered an upgrade.

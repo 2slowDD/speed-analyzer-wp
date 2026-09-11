@@ -3,7 +3,7 @@
 = 1.19.1 =
 * Pro, Business, and Agency plans are now yearly instead of monthly.
 * A temporary outage of the license service no longer downgrades a paid site to Free. The plan is kept, and the License panel says the license service could not be reached instead of reporting the license as expired.
-* The License panel shows the real reason a license is not active: a mistyped key, a disabled license, an expired license, or a license that has been paid for but not yet delivered.
+* The License panel shows the real reason a license is not active: a disabled license, an expired license, or a license that has been paid for but not yet delivered.
 * Added a warning on Speed Analyzer screens 10 days before a license expires. After expiry, a 7-day grace period keeps full access to your plan while you renew.
 * License activation now explains why it failed, and records the license's real expiry date instead of setting one a month from activation.
 * License deactivation now frees the site's license slot, and says so if the license service could not be reached.

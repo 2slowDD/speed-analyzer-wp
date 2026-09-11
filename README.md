@@ -64,11 +64,11 @@ Upgrade at: [wpservice.pro/our-products/speed-analyzer-wp-plugin/#licenses](http
 
 ## External Services
 
-This plugin delegates all testing to remote services. **No personal data is collected or stored.**
+This plugin delegates all testing to remote services and collects no data about your site's visitors. If you enter a license key, the license key, your site URL, an activation token and daily usage counts are sent to the license service, which records the activation against your license (see the table below).
 
 | Service | Used For | Data Sent |
 |---------|----------|-----------|
-| Cloudflare Workers (`globalwpspeed.dalibord79.workers.dev`) | TTFB measurement, PSI proxy | Tested URL + strategy |
+| Cloudflare Workers (`globalwpspeed.dalibord79.workers.dev` and `globalwpspeed1.dalibord79.workers.dev`, used alternately) | TTFB measurement, PSI proxy | Tested URL + strategy |
 | Google PageSpeed Insights API | LCP/FCP/CLS/TBT diagnostics | Proxied via CF Worker |
 | License service (`gatekeepersa.dalibord79.workers.dev`) | License activation, status and daily allowance | License key, site URL, operation, daily usage count, activation token |
 
