@@ -6,18 +6,16 @@
  * no network call on page load; the panel owns the /check call.
  *
  * File shape note: the two pure helpers plus the small pure computations
- * below them are defined unconditionally so a bare `require` of this file
- * (the test harness) can exercise the real shipped functions under plain PHP
- * CLI, where WordPress does not exist. The admin_notices renderer and the
- * AJAX handler are ALSO defined unconditionally — a function definition is
- * inert until called — but their add_action() registrations are wrapped in
- * function_exists( 'add_action' ) so loading this file outside WordPress
- * never touches a missing WordPress function.
+ * below them are defined unconditionally so a test harness that defines
+ * ABSPATH and then requires this file can exercise the real shipped functions
+ * under plain PHP CLI, where WordPress does not exist. The admin_notices
+ * renderer and the AJAX handler are ALSO defined unconditionally — a function
+ * definition is inert until called — but their add_action() registrations are
+ * wrapped in function_exists( 'add_action' ) so loading this file outside
+ * WordPress never touches a missing WordPress function.
  */
 
-if ( ! defined( 'ABSPATH' ) && 'cli' !== PHP_SAPI ) {
-    exit;
-}
+defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'WPSA_LICENSE_NOTICE_DAYS' ) ) {
     define( 'WPSA_LICENSE_NOTICE_DAYS', 10 );

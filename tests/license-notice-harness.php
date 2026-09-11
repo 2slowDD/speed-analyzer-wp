@@ -1,6 +1,19 @@
 <?php
 declare( strict_types=1 );
 date_default_timezone_set( 'UTC' ); // WordPress runs PHP in UTC; the date checks below assume the same.
+
+// WordPress defines ABSPATH before it loads a plugin file, and the notice file exits
+// without it. An exit inside the require would end this run with status 0 and no
+// output, which the suite runner scores as a pass, so the shutdown check turns any
+// run that stops before the end marker at the bottom into a failure.
+define( 'ABSPATH', __DIR__ . '/' );
+$GLOBALS['notice_reached_end'] = false;
+register_shutdown_function( function () {
+    if ( empty( $GLOBALS['notice_reached_end'] ) ) {
+        fwrite( STDERR, "FAIL license notice harness stopped before its end marker (exit, die or a fatal error)\n" );
+        exit( 1 );
+    }
+} );
 require __DIR__ . '/../includes/license-notice.php';   // pure helpers only, guarded by function_exists
 
 $fails = 0;
@@ -132,6 +145,27 @@ ok( "'' never shows", wpsa_license_notice_should_show( '', null, null ), false )
 // could close it.
 ok( 'unknown is dismissible', wpsa_license_notice_is_dismissible( 'unknown' ), true );
 ok( "'' is dismissible",      wpsa_license_notice_is_dismissible( '' ),        true );
+
+// The notice file's first statement is its direct-access guard, in a shape the
+// WordPress.org plugin checker recognises: `defined( 'ABSPATH' ) || exit;` or
+// `if ( ! defined( 'ABSPATH' ) ) { exit; }`. The checker reports a guard with any
+// extra condition (one that lets the command line through for tests, say) as
+// missing, and a guard placed after other code no longer stops a direct request
+// before that code runs.
+$notice_code = '';
+foreach ( token_get_all( (string) file_get_contents( __DIR__ . '/../includes/license-notice.php' ) ) as $t ) {
+    if ( is_array( $t ) && in_array( $t[0], array( T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) {
+        continue;
+    }
+    $notice_code .= is_array( $t ) ? $t[1] : $t;
+}
+ok( 'the notice file starts with a direct-access guard the plugin checker recognises',
+    0 === strpos( $notice_code, "defined('ABSPATH')||exit;" ) || 0 === strpos( $notice_code, "if(!defined('ABSPATH')){exit;}" ),
+    true );
+
+// End marker, set before either exit path below so the shutdown check stays silent on
+// a run that reached here, whether it passed or failed.
+$GLOBALS['notice_reached_end'] = true;
 
 if ( $fails ) { fwrite( STDERR, "$fails check(s) failed\n" ); exit( 1 ); }
 echo "license notice harness passed\n";

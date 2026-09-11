@@ -64,6 +64,9 @@ register_shutdown_function( function () {
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'WPSA_GATEKEEPER_URL', 'https://gk.test' );
+// WordPress defines ABSPATH before it loads a plugin file; includes/license-notice.php
+// exits without it, which the shutdown check above reports as a failed run.
+define( 'ABSPATH', __DIR__ . '/' );
 
 $GLOBALS['opts'] = array();
 $GLOBALS['transients'] = array();
