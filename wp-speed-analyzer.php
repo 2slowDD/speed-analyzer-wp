@@ -3,7 +3,7 @@
  * Plugin Name:     Speed Analyzer
  * Plugin URI:      https://wpservice.pro/our-products/speed-analyzer-wp-plugin/
  * Description:     Detect your website's speed, bottlenecks, and key performance indicators to look for.
- * Version:         1.19.0
+ * Version:         1.19.1
  * Author:          Dalibor Druzinec / WPservice
  * Author URI:      https://wpservice.pro
  * License:         GPL v3 or later
@@ -40,13 +40,47 @@ if ( ! defined( 'WPSA_PLUGIN_URL' ) ) {
     define( 'WPSA_PLUGIN_URL', plugin_dir_url( WPSA_PLUGIN_FILE ) );
 }
 
-define( 'SAWP_VERSION', '1.19.0' );
+define( 'SAWP_VERSION', '1.19.1' );
 if ( ! defined( 'WPSA_VERSION' ) ) {
     define( 'WPSA_VERSION', SAWP_VERSION );
 }
 
+/**
+ * Schema version of the licence options block.
+ *
+ * Deliberately NOT SAWP_VERSION: this tracks the shape of the stored licence
+ * options, which changes for different reasons than the plugin version. Bump
+ * it only when a new one-shot options migration is added below.
+ */
+const WPSA_LICENSE_OPTIONS_VERSION = '1.19.1';
 
-// Gatekeeper base URL 
+/**
+ * One-shot migration of licence options on upgrade to 1.19.1.
+ *
+ * Pre-1.19.1 installs carry a locally fabricated expiry ("+1 month" at
+ * activation) that corresponds to nothing on the server. 1.19.1 reads that
+ * option as the authoritative expiry, so it must be discarded rather than
+ * inherited. Until the first v3 answer arrives the expiry is unknown, which
+ * the unverified snapshot treats conservatively.
+ *
+ * @return bool True when the migration ran, false when it was already done.
+ */
+function wpsa_maybe_migrate_license_options() {
+    $done = (string) get_option( 'wpsa_options_version', '' );
+    if ( version_compare( $done, WPSA_LICENSE_OPTIONS_VERSION, '>=' ) ) {
+        return false;
+    }
+    delete_option( 'wpsa_license_expiration' );
+    update_option( 'wpsa_license_state',  'unknown', false );
+    update_option( 'wpsa_license_status', 'unverified', false );
+    update_option( 'wpsa_license_last_verified', 0, false );
+    update_option( 'wpsa_options_version', WPSA_LICENSE_OPTIONS_VERSION, false );
+    return true;
+}
+add_action( 'admin_init', 'wpsa_maybe_migrate_license_options' );
+
+
+// Gatekeeper base URL
 if ( ! defined( 'WPSA_GATEKEEPER_URL' ) ) {
     define( 'WPSA_GATEKEEPER_URL', 'https://gatekeepersa.dalibord79.workers.dev' );
 }
@@ -62,6 +96,7 @@ require_once WPSA_PLUGIN_DIR . 'includes/lpanel.php';
 require_once WPSA_PLUGIN_DIR . 'includes/schedule.php';
 require_once WPSA_PLUGIN_DIR . 'includes/compare.php';
 require_once WPSA_PLUGIN_DIR . 'includes/editors.php';
+require_once WPSA_PLUGIN_DIR . 'includes/license-notice.php';
 
 /**
  * --- AJAX endpoint to render PDF markup on demand ---
@@ -80,6 +115,13 @@ function wpsa_ajax_pdf_report() {
         wp_send_json_error( 'Quota check failed. Upgrade tier or wait until tomorrow.' );
     }
     if ( empty( $quota['allowed'] ) ) {
+        // A licence over its site limit is told that, not that today's PDFs
+        // ran out. Sent unescaped on purpose: the admin script inserts this
+        // error as a text node, so esc_html() here would show raw entities.
+        $over_cap = wpsa_license_over_cap_notice( $quota );
+        if ( '' !== $over_cap ) {
+            wp_send_json_error( $over_cap );
+        }
         wp_send_json_error( 'Daily PDF limit reached. Upgrade tier or wait until tomorrow.' );
     }
 
@@ -273,37 +315,6 @@ function wpsa_ajax_pdf_quota() {
 
             if ( is_wp_error( $quota ) ) {
                 $quota = [ 'remaining' => 0, 'limit' => 0, 'tier' => 'free' ];
-            } else {
-
-                // Only upgrade immediately. For downgrades, defer until local grace period ends.
-                if ( ! empty( $quota['tier'] ) ) {
-                    $incoming = (string) $quota['tier'];
-                    $current  = (string) get_option( 'wpsa_saved_tier', 'free' );
-
-                    // Has our stored grace period expired?
-                    $exp      = (string) get_option( 'wpsa_license_expiration', '' );
-                    $expired  = false;
-                    if ( $exp ) {
-                        // treat expiration end-of-day
-                        $expired = ( time() > strtotime( $exp . ' 23:59:59' ) );
-                    }
-
-                    // Upgrade now (e.g., free->premium1, premium1->premium3, etc.)
-                    if ( wpsa_tier_rank( $incoming ) > wpsa_tier_rank( $current ) ) {
-                        update_option( 'wpsa_saved_tier', $incoming );
-                    }
-
-                    // Downgrade only if the grace period has ended
-                    if ( $expired && wpsa_tier_rank( $incoming ) < wpsa_tier_rank( $current ) ) {
-                        update_option( 'wpsa_saved_tier', $incoming );
-                    }
-
-                    // IMPORTANT: if we’re deferring a downgrade (grace still valid),
-                    // show the local grace quota in the UI so it matches PDFs.
-                    if ( ! $expired && wpsa_tier_rank( $incoming ) < wpsa_tier_rank( $current ) ) {
-                        $quota = wpsa_get_local_quota_snapshot( 'ttfb' );
-                    }
-                }
             }
 
 
@@ -385,15 +396,66 @@ function wpsa_handle_license_form() {
 
     // ─── Deactivate branch ───
     if ( isset( $_POST['wpsa_deactivate_license'] ) ) {
-        // Only remove the active key — leave tier, expiry & slots intact
-        delete_option( 'wpsa_license_key' );
+        // Release the slot on the worker (best-effort — local state is
+        // cleared unconditionally below regardless of the outcome here).
+        $token              = (string) get_option( 'wpsa_license_activation_token', '' );
+        $deactivate_failed  = false;
+        if ( '' !== $token ) {
+            $resp = wp_remote_post( WPSA_GATEKEEPER_URL . '/deactivate', array(
+                'headers' => array( 'Content-Type' => 'application/json' ),
+                'body'    => wp_json_encode( array(
+                    'license_key' => get_option( 'wpsa_license_key', '' ),
+                    'token'       => $token,
+                ) ),
+                'timeout' => 10,
+            ) );
 
-        add_settings_error(
-            'wpsa_license',
-            'deactivated',
-            __( 'License deactivated successfully.', 'speed-analyzer' ),
-            'updated'
-        );
+            if ( is_wp_error( $resp ) ) {
+                $deactivate_failed = true;
+            } else {
+                $deact_code   = (int) wp_remote_retrieve_response_code( $resp );
+                $deact_body   = json_decode( wp_remote_retrieve_body( $resp ), true );
+                $deact_reason = is_array( $deact_body ) && isset( $deact_body['reason'] ) ? (string) $deact_body['reason'] : '';
+                $deact_ok     = is_array( $deact_body ) && ! empty( $deact_body['success'] );
+
+                if ( $deact_code < 200 || $deact_code >= 300 ) {
+                    $deactivate_failed = true;
+                } elseif ( ! $deact_ok && 'no_token' !== $deact_reason ) {
+                    // A 'no_token' answer means there was nothing on the worker
+                    // to release — that is a success for the customer's purposes,
+                    // not a failure to report (AC-W14).
+                    $deactivate_failed = true;
+                }
+            }
+        }
+
+        // D10: saved_tier and expiry are DELIBERATELY left in place.
+        // wpsa_get_license_tier() honours the stored expiry once no key is
+        // present — the customer keeps the paid tier through the date
+        // already paid for, then falls back to free on its own.
+        delete_option( 'wpsa_license_key' );
+        delete_option( 'wpsa_license_activation_token' );
+        // wpsa_render_license_notice() reads state directly, never key
+        // presence — grace/expired/invalid/sold are shown and NOT
+        // dismissible, so a deactivated site with no key must not be left on
+        // a stale non-free state or it shows a permanent "expired" banner.
+        update_option( 'wpsa_license_state', 'free' );
+
+        if ( $deactivate_failed ) {
+            add_settings_error(
+                'wpsa_license',
+                'deactivate_worker_unreachable',
+                __( 'Licence removed from this site, but the licence service could not be reached — the slot may still be in use. Please try again in a moment.', 'speed-analyzer' ),
+                'error'
+            );
+        } else {
+            add_settings_error(
+                'wpsa_license',
+                'deactivated',
+                __( 'License deactivated successfully.', 'speed-analyzer' ),
+                'updated'
+            );
+        }
         set_transient(
             'wpsa_license_notices_' . get_current_user_id(),
             get_settings_errors( 'wpsa_license' ),
@@ -422,114 +484,37 @@ if ( isset( $_POST['wpsa_activate_license'] ) ) {
         exit;
     }
 
-    // 2) Central-tracker slots check
-    $status_url = 'https://wpservice.pro/wp-json/wpsa/v1/status?license_key=' . rawurlencode( $key );
-    $local      = wp_remote_get( $status_url, [ 'timeout' => 5 ] );
-    $remaining  = 0;
-    $activeSite = false;
-    if ( ! is_wp_error( $local )
-      && 200 === wp_remote_retrieve_response_code( $local )
-      && ( $data = json_decode( wp_remote_retrieve_body( $local ), true ) )
-    ) {
-        $remaining  = intval( $data['remainingSites'] ?? 0 );
-        $activeSite = (bool) $data['activeSite'] ?? false;
-    }
-
-    // if no free slots **and** not already active on this host…
-    if ( $remaining < 1 && ! $activeSite ) {
-        // keep the key in the text field
-        set_transient( 'wpsa_license_input_' . get_current_user_id(), $key, MINUTE_IN_SECONDS );
-        add_settings_error( 'wpsa_license', 'slots_full',
-            __( 'All license slots used, please upgrade license.', 'speed-analyzer' ), 'error'
-        );
-        set_transient( 'wpsa_license_notices_' . get_current_user_id(),
-            get_settings_errors( 'wpsa_license' ), MINUTE_IN_SECONDS
-        );
-        wp_safe_redirect( admin_url( 'tools.php?page=speed-analyzer&tab=license' ) );
-        exit;
-    }
-
-    // 3) Gatekeeper activation
-    wp_remote_post( WPSA_GATEKEEPER_URL . '/activate', [
-        'headers' => [ 'Content-Type' => 'application/json' ],
-        'body'    => wp_json_encode([
+    // 2) Gatekeeper activation — the single source of truth for whether this key is usable.
+    // Tracker /status and /activate calls (wpservice.pro/wp-json/wpsa/v1/*) are deleted: the
+    // tracker is retired and its response to the old code was discarded anyway.
+    $resp = wp_remote_post( WPSA_GATEKEEPER_URL . '/activate', array(
+        'headers' => array( 'Content-Type' => 'application/json' ),
+        'body'    => wp_json_encode( array(
             'license_key' => $key,
             'site_url'    => home_url(),
-        ]),
+        ) ),
         'timeout' => 15,
-    ]);
+    ) );
 
-    // 4) **Correct** central tracker recording call
-    wp_remote_post( 'https://wpservice.pro/wp-json/wpsa/v1/activate', [
-        'headers' => [ 'Content-Type' => 'application/json' ],
-        'body'    => wp_json_encode([
-            'license_key' => $key,
-            'site_url'    => home_url(),
-        ]),
-        'timeout' => 5,
-    ]);
-    
-        // 5) Gatekeeper /check for tier + slot counts
-        $check_url = add_query_arg( [
-            'license_key' => $key,
-            'operation'   => 'ttfb',
-            'daily_used'  => 0,
-        ], WPSA_GATEKEEPER_URL . '/check' );
+    $body = is_wp_error( $resp ) ? null : json_decode( wp_remote_retrieve_body( $resp ), true );
 
-    
-        $resp = wp_remote_get( $check_url, [ 'timeout' => 15 ] );
-        if ( is_wp_error( $resp ) || 200 !== wp_remote_retrieve_response_code( $resp ) ) {
-            add_settings_error(
-                'wpsa_license',
-                'check_failed',
-                __( 'License check failed, please try again.', 'speed-analyzer' ),
-                'error'
-            );
-            set_transient(
-                'wpsa_license_notices_' . get_current_user_id(),
-                get_settings_errors( 'wpsa_license' ),
-                MINUTE_IN_SECONDS
-            );
-            wp_safe_redirect( admin_url( 'tools.php?page=speed-analyzer&tab=license' ) );
-            exit;
-        }
-    
-          $body = json_decode( wp_remote_retrieve_body( $resp ), true );
-        if ( empty( $body ) || ( $body['tier'] ?? 'free' ) === 'free' ) {
-            // Prefix looked ok, but Gatekeeper did not upgrade beyond "free".
-            // Treat this as a non-active subscription (expired / cancelled / not valid for this product).
-            set_transient( 'wpsa_license_input_' . get_current_user_id(), $key, MINUTE_IN_SECONDS );
-    
-            add_settings_error(
-                'wpsa_license',
-                'subscription_inactive',
-                __( 'Subscription is not active for this license key (expired or cancelled). Please renew/upgrade your license.', 'speed-analyzer' ),
-                'error'
-            );
-    
-            set_transient(
-                'wpsa_license_notices_' . get_current_user_id(),
-                get_settings_errors( 'wpsa_license' ),
-                MINUTE_IN_SECONDS
-            );
-    
-            wp_safe_redirect( admin_url( 'tools.php?page=speed-analyzer&tab=license' ) );
-            exit;
-        }
-
-    
-        // 6) Success → commit key, tier, expiration…
-        update_option( 'wpsa_license_key',        $key );
-        update_option( 'wpsa_saved_tier',         $body['tier'] );
-        update_option( 'wpsa_license_expiration', gmdate( 'Y-m-d', strtotime( '+1 month' ) ) );
-    
-        // 7) Finish with success notice + redirect
-        add_settings_error(
-            'wpsa_license',
-            'activated',
-            __( 'License activated successfully!', 'speed-analyzer' ),
-            'updated'
+    if ( ! is_array( $body ) || empty( $body['success'] ) ) {
+        $reason   = is_array( $body ) && isset( $body['reason'] ) ? (string) $body['reason'] : 'unverified';
+        $messages = array(
+            'not_found'       => __( "We don't recognise that licence key — check it for typos.", 'speed-analyzer' ),
+            'not_delivered'   => __( 'Your licence has been paid for but not yet delivered. Please contact support.', 'speed-analyzer' ),
+            'inactive'        => __( 'This licence is no longer active. Please renew.', 'speed-analyzer' ),
+            'disabled'        => __( 'This licence has been disabled. Please contact support.', 'speed-analyzer' ),
+            'expired'         => __( 'This licence has expired. Please renew.', 'speed-analyzer' ),
+            'slots'           => __( 'All licence slots are in use. Deactivate another site, or upgrade.', 'speed-analyzer' ),
+            'unverified'      => __( 'Could not reach the licence service. Please try again in a moment.', 'speed-analyzer' ),
+            'activate_failed' => __( 'The licence service could not activate this key. Please try again.', 'speed-analyzer' ),
         );
+        $msg = isset( $messages[ $reason ] ) ? $messages[ $reason ] : $messages['unverified'];
+
+        // keep the key in the text field so the customer isn't asked to retype it
+        set_transient( 'wpsa_license_input_' . get_current_user_id(), $key, MINUTE_IN_SECONDS );
+        add_settings_error( 'wpsa_license', $reason, $msg, 'error' );
         set_transient(
             'wpsa_license_notices_' . get_current_user_id(),
             get_settings_errors( 'wpsa_license' ),
@@ -538,6 +523,35 @@ if ( isset( $_POST['wpsa_activate_license'] ) ) {
         wp_safe_redirect( admin_url( 'tools.php?page=speed-analyzer&tab=license' ) );
         exit;
     }
+
+    // 3) Success → commit key, token, tier, and the SERVER's expiry (never a fabricated one).
+    update_option( 'wpsa_license_key', $key );
+    update_option( 'wpsa_license_activation_token', isset( $body['token'] ) ? (string) $body['token'] : '' );
+    update_option( 'wpsa_saved_tier', isset( $body['tier'] ) ? (string) $body['tier'] : 'free' );
+    update_option( 'wpsa_license_expiration', isset( $body['expires_at'] ) && null !== $body['expires_at'] ? (string) $body['expires_at'] : '' );
+    update_option( 'wpsa_license_state', isset( $body['state'] ) ? (string) $body['state'] : '' );
+    update_option( 'wpsa_license_reason', isset( $body['reason'] ) && null !== $body['reason'] ? (string) $body['reason'] : '' );
+    update_option( 'wpsa_license_status', isset( $body['status'] ) ? (string) $body['status'] : '' );
+    // Anchored to the record's own age, matching wpsa_check_quota()'s write
+    // (includes/helpers.php) — never to receipt time.
+    $fetched = isset( $body['fetched_at'] ) ? strtotime( (string) $body['fetched_at'] ) : false;
+    update_option( 'wpsa_license_last_verified', $fetched ? (int) $fetched : time() );
+
+    // 4) Finish with success notice + redirect
+    add_settings_error(
+        'wpsa_license',
+        'activated',
+        __( 'License activated successfully!', 'speed-analyzer' ),
+        'updated'
+    );
+    set_transient(
+        'wpsa_license_notices_' . get_current_user_id(),
+        get_settings_errors( 'wpsa_license' ),
+        MINUTE_IN_SECONDS
+    );
+    wp_safe_redirect( admin_url( 'tools.php?page=speed-analyzer&tab=license' ) );
+    exit;
+}
 
 
 }
@@ -1034,15 +1048,24 @@ function wpsa_render_tool_page() {
                      . esc_html__( 'Quota check failed. Please retry.', 'speed-analyzer' )
                      . '</p></div>';
             } elseif ( ! $quota['allowed'] ) {
-                echo '<div class="notice notice-error3 notice-warning wpsa-notice-limit"><p><strong>'
-                     . esc_html__( 'Fair usage limit.', 'speed-analyzer' )
-                     . '</strong> '
-                     . sprintf(
-                         /* translators: %1$d: number of tests allowed per day. */
-                         esc_html__( 'You’ve used all %1$d tests for today.', 'speed-analyzer' ),
-                         (int) $quota['limit']
-                     )
-                     . '</p></div>';
+                // A licence over its site limit is told that, not that today's
+                // tests ran out. Same notice box and classes; only the text differs.
+                $over_cap = wpsa_license_over_cap_notice( $quota );
+                if ( '' !== $over_cap ) {
+                    echo '<div class="notice notice-error3 notice-warning wpsa-notice-limit"><p>'
+                         . esc_html( $over_cap )
+                         . '</p></div>';
+                } else {
+                    echo '<div class="notice notice-error3 notice-warning wpsa-notice-limit"><p><strong>'
+                         . esc_html__( 'Fair usage limit.', 'speed-analyzer' )
+                         . '</strong> '
+                         . sprintf(
+                             /* translators: %1$d: number of tests allowed per day. */
+                             esc_html__( 'You’ve used all %1$d tests for today.', 'speed-analyzer' ),
+                             (int) $quota['limit']
+                         )
+                         . '</p></div>';
+                }
             } else {
                 if ( wpsa_module1_ttfb( $tested_url, $log_path, $results_log ) ) {
                     wpsa_increment_daily_usage();

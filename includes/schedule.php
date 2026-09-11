@@ -952,6 +952,33 @@ function wpsa_schedule_threshold_triggered( $metric_key, $current, $threshold_va
 
 
 /**
+ * Icon for one scheduled-test result in the batch email.
+ *
+ * A run stopped by a limit gets the stop sign: the daily test limit, or the
+ * licence being over its site limit. The scheduler flags those results;
+ * results stored before the flag existed are still recognised by their
+ * daily-limit message. The site-limit sentence is translated, so its words
+ * are never matched.
+ *
+ * Pure, with its closing brace at column 0 and no closure inside, so the test
+ * harness can lift it by name and run it.
+ *
+ * @param bool   $success     Whether the test ran.
+ * @param string $message     The result's message.
+ * @param bool   $limit_block Whether a limit stopped the run.
+ * @return string The icon.
+ */
+function wpsa_schedule_result_icon( $success, $message, $limit_block ) {
+    if ( $success ) {
+        return '✅';
+    }
+    if ( $limit_block || ( $message && false !== stripos( $message, 'daily limit' ) ) ) {
+        return '🛑';
+    }
+    return '❌';
+}
+
+/**
  * Build and send a single HTML email with all scheduled tests (Module 1 + 5 only).
  *
  * @param array  $batch       Batch array from wpsa_run_scheduled_tests().
@@ -1367,12 +1394,8 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
             $label_html = esc_html( $url_text );
         }
 
-        $icon = $success ? '✅' : '❌';
-
-        // Use red stop icon specifically for daily-limit failures.
-        if ( ! $success && $message && false !== stripos( $message, 'daily limit' ) ) {
-            $icon = '🛑';
-        }
+        // Stop icon when the daily limit or the site limit stopped the run.
+        $icon = wpsa_schedule_result_icon( $success, $message, ! empty( $item['limit_block'] ) );
 
         $msg_full = $message
             ? $message
@@ -1405,10 +1428,7 @@ if ( ! empty( $batch['alerts_enabled'] ) && ! empty( $batch['alert_hits'] ) && i
             ? sprintf( __( 'Test #%d (scheduled)', 'speed-analyzer' ), $test_no )
             : __( 'Scheduled test (no test number logged)', 'speed-analyzer' );
 
-        $icon = $success ? '✅' : '❌';
-        if ( ! $success && $message && false !== stripos( $message, 'daily limit' ) ) {
-            $icon = '🛑';
-        }
+        $icon = wpsa_schedule_result_icon( $success, $message, ! empty( $item['limit_block'] ) );
 
         $status_msg = $message ? $message : ( $success ? __( 'Test ran successfully.', 'speed-analyzer' ) : __( 'Test run failed (Module 1 did not complete).', 'speed-analyzer' ) );
 
@@ -2083,6 +2103,12 @@ function wpsa_schedule_register_cron() {
 
     $processed_this_tick = 0;
     $daily_exhausted     = false;
+    // What every URL blocked by the quota this tick is told. The quota check
+    // below picks the site-limit sentence when the licence is over its site
+    // limit and the daily-limit sentence otherwise, and the URLs skipped after
+    // it are given the same reason.
+    $daily_limit_message = 'Daily limit reached before running this test.';
+    $limit_message       = $daily_limit_message;
 
     // Main per-URL loop – phase based, now actually respects chunk size AND PHP time budget.
     foreach ( $urls as $idx => $row ) {
@@ -2111,19 +2137,23 @@ function wpsa_schedule_register_cron() {
         $url     = esc_url_raw( $url_raw );
 
         // If we already hit the daily limit, don't start any new Module 1 runs (phase 0).
-        // Still record these URLs in the batch summary so the UI/email show them.
+        // Still record these URLs in the batch summary so the UI/email show them,
+        // with the message the blocked URL got: it names the site limit when that,
+        // not the daily limit, is what stopped the run. The limit flag gives them
+        // the batch email's stop icon.
         if ( $daily_exhausted && 0 === $phase ) {
             $items[] = array(
                 'url'     => $url,
                 'success' => false,
                 'test_no' => null,
-                'message' => 'Daily limit reached before running this test.',
+                'message' => $limit_message,
+                'limit_block' => true,
             );
 
             $urls[ $idx ]['phase']   = 3;
             $urls[ $idx ]['success'] = false;
             if ( empty( $urls[ $idx ]['message'] ) ) {
-                $urls[ $idx ]['message'] = 'Daily limit reached before running this test.';
+                $urls[ $idx ]['message'] = $limit_message;
             }
 
             $processed_this_tick++;
@@ -2211,18 +2241,30 @@ function wpsa_schedule_register_cron() {
                 }
 
                 if ( empty( $quota['allowed'] ) ) {
-                    // Daily limit exhausted – record and mark this URL as done.
+                    // Daily limit exhausted, or the licence is over its site
+                    // limit – record and mark this URL as done. Reached at most
+                    // once per tick: $daily_exhausted sends every later URL to
+                    // the skip branch above, which reuses $limit_message.
+                    $over_cap      = wpsa_license_over_cap_notice( $quota );
+                    $limit_message = ( '' !== $over_cap ) ? $over_cap : $daily_limit_message;
+                    if ( '' !== $over_cap ) {
+                        wpsa_debug_log( 'WPSA schedule: licence is over its site limit, not running ' . $url );
+                    } else {
+                        wpsa_debug_log( 'WPSA schedule: daily limit reached before running ' . $url );
+                    }
+
+                    // The limit flag gives this result the batch email's stop icon.
                     $items[] = array(
                         'url'     => $url,
                         'success' => false,
                         'test_no' => null,
-                        'message' => 'Daily limit reached before running this test.',
+                        'message' => $limit_message,
+                        'limit_block' => true,
                     );
-                    wpsa_debug_log( 'WPSA schedule: daily limit reached before running ' . $url );
 
                     $urls[ $idx ]['phase']    = 3;
                     $urls[ $idx ]['success']  = false;
-                    $urls[ $idx ]['message']  = 'Daily limit reached before running this test.';
+                    $urls[ $idx ]['message']  = $limit_message;
                     $urls[ $idx ]['m1_done']  = false;
                     $daily_exhausted          = true;
 

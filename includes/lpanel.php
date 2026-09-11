@@ -25,140 +25,90 @@ function wpsa_render_license_panel_ui() {
         $display_key = $option_key;
     }
 
-    // 3) remember saved tier & expiration (untouched by invalid attempts)
-    $saved_tier     = get_option( 'wpsa_saved_tier', 'free' );
-    $expiry_date    = get_option( 'wpsa_license_expiration', '' );
-    $last_paid_tier = get_option( 'wpsa_last_paid_tier', '' );
+    // ── Licence state (single source of truth) ──
+    // F4: $gk_ok / $gk_tier were also true for the local conservative
+    // snapshot, so a Gatekeeper outage rendered "License expired". Drive
+    // everything from one wpsa_check_quota() call instead.
+    $quota  = wpsa_check_quota( 'ttfb' );
+    $tier   = isset( $quota['tier'] ) ? (string) $quota['tier'] : 'free';
+    $state  = isset( $quota['state'] ) ? (string) $quota['state'] : '';
+    $reason = isset( $quota['reason'] ) ? (string) $quota['reason'] : '';
+    $status = isset( $quota['status'] ) ? (string) $quota['status'] : '';
+    $sites  = isset( $quota['sites'] ) && is_array( $quota['sites'] ) ? $quota['sites'] : array();
+    $expires_at = isset( $quota['expires_at'] ) ? (string) $quota['expires_at'] : '';
 
-    // ── Days remaining ──
-    $now  = time();
-    $days = $expiry_date
-      ? max( 0, ceil( ( strtotime( $expiry_date ) - $now ) / DAY_IN_SECONDS ) )
-      : 0;
+    // ── Plan name and days number, shared with the licence notice ──
+    // Both stored values are read after the check above, because that check may
+    // just have rewritten them: the expiry on a renewal, and the plan that lapsed
+    // on the first answer that reports it. The days never come from the service's
+    // days_left, which stays at 0 for the whole grace week.
+    $last_paid_tier = (string) get_option( 'wpsa_last_paid_tier', '' );
+    $expiration     = (string) get_option( 'wpsa_license_expiration', '' );
+    $display        = wpsa_license_display( $state, $tier, $last_paid_tier, $expiration );
+    $label          = $display['label'];
+    $days           = $display['days'];
 
-        // ── Decide tier ──
-    // IMPORTANT: a stored key does not always mean an active subscription.
-    // If Gatekeeper returns tier=free for a stored key, treat it as "expired".
-    $license_state = 'free'; // 'active' | 'expired' | 'free'
-
-    $gk_tier = '';
-    $gk_ok   = false;
-    $tier = 'free';
-
-   if ( $option_key ) {
-
-    // Ask Gatekeeper via the shared quota function so we also sync options (saved tier / last paid tier).
-    $quota = wpsa_check_quota( 'ttfb' );
-
-    if ( is_array( $quota ) && isset( $quota['tier'] ) ) {
-        $gk_ok   = true;
-        $gk_tier = (string) $quota['tier'];
-    }
-
-    // Gatekeeper says free for a stored key that previously had premium → expired subscription messaging.
-    if ( $gk_ok && $gk_tier === 'free' && $last_paid_tier !== '' ) {
-        $tier          = 'free';
-        $license_state = 'expired';
-
-    } elseif ( $gk_ok && $gk_tier !== '' ) {
-        // Gatekeeper is the source of truth for the License panel display.
-        $tier          = $gk_tier;
-        $license_state = ( $tier !== 'free' ) ? 'active' : 'free';
-
-    } else {
-        // Gatekeeper unreachable: fall back to local tier logic (offline/grace/etc.)
-        $tier          = wpsa_get_license_tier();
-        $license_state = ( $tier !== 'free' ) ? 'active' : 'free';
-    }
-
-} elseif ( $days > 0 ) {
-    // Deactivated but still within local grace period
-    $tier          = $saved_tier;
-    $license_state = ( $tier !== 'free' ) ? 'active' : 'free';
-
-} else {
-    $tier          = 'free';
-    $license_state = 'free';
-}
-
-
-    // ── Map to labels ──
-    $labels = [
-      'free'     => 'Free',
-      'premium1' => 'PRO',
-      'premium2' => 'BUSINESS',
-      'premium3' => 'AGENCY',
-    ];
-    $label = $labels[ $tier ] ?? ucfirst( $tier );
-
-       // ── Build status text ──
-        if ( isset( $license_state ) && $license_state === 'expired' ) {
-            $status_text = 'License expired – Free (please renew).';
-            $icon        = '<span class="icon" style="color:#d32f2f;">⚠️</span>';
-        
-        } elseif ( $tier !== 'free' ) {
-        
-            // Premium is active (Gatekeeper tier is source of truth).
-            // Only show “days remaining” if you actually have local expiry populated.
-            if ( $days > 0 ) {
-                if ( $option_key ) {
-                    $status_text = sprintf( '%s (%d days remaining)', $label, $days );
-                } else {
-                    $status_text = sprintf(
-                        '<strong>%s</strong> plan functionality for the remaining <strong>%d</strong> days, then reverting to the <strong>FREE</strong> plan.',
-                        $label,
-                        $days
-                    );
-                }
-            } else {
-                $status_text = $label;
-            }
-        
-            $icon = '<span class="icon" style="color:#388e3c;">✅</span>';
-        
-        } else {
-            $status_text = 'Free';
-            $icon        = '';
-        }
-
-
-         // ── License slots (via your central tracker on wpservice.pro) ──
-    // For Free tier we don't care about slots at all.
-    if ( $display_key && 'free' !== $tier ) {
-
-        // build a real status URL against your central tracker
-       $args = array(
-            'license_key' => $display_key,
-            'site_url'    => home_url(),
+    // ── Build status text ──
+    // Copy is fixed by the spec's §5.3 table; do not improvise.
+    if ( 'unknown' === $state ) {
+        $status_text = $label; // post-upgrade, pre-first-check: no date, no warning
+    } elseif ( 'sold' === $state ) {
+        $status_text = __( 'Your licence has been paid for but not yet delivered. Please contact support.', 'speed-analyzer' );
+    } elseif ( 'invalid' === $state && 'not_found' === $reason ) {
+        $status_text = __( "We don't recognise that licence key — check it for typos", 'speed-analyzer' );
+    } elseif ( 'invalid' === $state ) {
+        $status_text = __( 'This licence is no longer active', 'speed-analyzer' );
+    } elseif ( 'grace' === $state ) {
+        $status_text = sprintf(
+            /* translators: 1: plan name, 2: days of access remaining */
+            __( '%1$s — licence expired; %2$d days of access remaining', 'speed-analyzer' ),
+            $label, (int) $days
         );
-        $status_url = 'https://wpservice.pro/wp-json/wpsa/v1/status?' . http_build_query( $args );
-                $resp       = wp_remote_get(
-                    $status_url,
-                    array(
-                        'timeout' => 5,
-                    )
-                );
-
-       if (
-            ! is_wp_error( $resp )
-            && 200 === (int) wp_remote_retrieve_response_code( $resp )
-            && ( $data = json_decode( wp_remote_retrieve_body( $resp ), true ) )
-        ) {
-            $slots_limit     = (int) ( $data['maxSites']       ?? wpsa_get_license_slots_limit( $tier ) );
-            $slots_remaining = (int) ( $data['remainingSites'] ?? $slots_limit );
-        } else {
-            // fallback: assume full allotment on error
-            $slots_limit     = wpsa_get_license_slots_limit( $tier );
-            $slots_remaining = $slots_limit;
-        }
+    } elseif ( 'expired' === $state ) {
+        $status_text = sprintf(
+            /* translators: %s: plan name */
+            __( 'Licence expired — renew to restore %s', 'speed-analyzer' ),
+            $label
+        );
+    } elseif ( 'active' === $state && null !== $days && $days <= 10 ) {
+        $status_text = sprintf(
+            /* translators: 1: plan name, 2: days until expiry */
+            __( '%1$s — expires in %2$d days', 'speed-analyzer' ),
+            $label, (int) $days
+        );
     } else {
-        // Free tier or no key → no applicable slots
-        $slots_limit     = 0;
-        $slots_remaining = 0;
+        $status_text = $label;
     }
 
+    if ( 'stale' === $status ) {
+        $status_text .= ' ' . __( '(recently verified)', 'speed-analyzer' );
+    } elseif ( 'unverified' === $status ) {
+        $status_text .= ' ' . __( '— could not reach the licence service; showing your last known plan', 'speed-analyzer' );
+    }
 
+    // Icon mirrors the same state: a warning for anything that needs the
+    // customer's attention, a check for a confirmed paid licence, none for
+    // free/unknown. Not specified by the brief; kept for visual continuity
+    // with the pre-B4 panel and driven only by $state, never by copy.
+    if ( in_array( $state, array( 'sold', 'invalid', 'grace', 'expired' ), true ) ) {
+        $icon = '<span class="icon" style="color:#d32f2f;">⚠️</span>';
+    } elseif ( 'active' === $state ) {
+        $icon = '<span class="icon" style="color:#388e3c;">✅</span>';
+    } else {
+        $icon = '';
+    }
 
+    // D16: a site beyond the licence's cap must be told why, not silently blocked.
+    $over_cap_notice = wpsa_license_over_cap_notice( $quota );
+
+    // ── License slots (from the same /check response — the tracker call is retired) ──
+    if ( 'free' !== $tier && isset( $sites['max'], $sites['remaining'] ) ) {
+        $slots_limit     = (int) $sites['max'];
+        $slots_remaining = (int) $sites['remaining'];
+    } else {
+        $slots_limit     = null;
+        $slots_remaining = null;
+    }
 
     // ── Which button? ──
     // We only want to show “Deactivate” when there’s a _real_ saved key,
@@ -204,6 +154,15 @@ function wpsa_render_license_panel_ui() {
 
           
           
+        <?php
+        // D16: a site beyond the licence's cap must be told why, not silently blocked.
+        if ( '' !== $over_cap_notice ) {
+            printf(
+                '<div class="notice notice-warning inline"><p>%s</p></div>',
+                esc_html( $over_cap_notice )
+            );
+        }
+        ?>
         <input type="hidden" name="action" value="wpsa_save_license">
         <?php wp_nonce_field( 'wpsa_license_action','wpsa_license_nonce' );?>
 
@@ -250,6 +209,9 @@ function wpsa_render_license_panel_ui() {
                   );
                 ?>
                 <?php echo wp_kses( $icon, array( 'span' => array( 'class' => array(), 'style' => array() ) ) ); ?>
+                <?php if ( 'sold' === $state ) : ?>
+                <a href="<?php echo esc_url( 'https://wpservice.pro/contact/' ); ?>" target="_blank" rel="noopener noreferrer" class="button"><?php esc_html_e( 'Contact', 'speed-analyzer' ); ?></a>
+                <?php endif; ?>
               </td>
             </tr>
 
@@ -259,13 +221,15 @@ function wpsa_render_license_panel_ui() {
                 <?php
                 if ( 'free' === $tier ) {
                     esc_html_e( 'N/A for Free plan', 'speed-analyzer' );
-                } else {
+                } elseif ( null !== $slots_limit ) {
                     printf(
                         /* translators: 1: total slots, 2: remaining slots */
                         esc_html__( 'Slots: %1$s, Remaining: %2$s', 'speed-analyzer' ),
                         esc_html( $slots_limit ),
                         esc_html( $slots_remaining )
                     );
+                } else {
+                    esc_html_e( 'N/A', 'speed-analyzer' );
                 }
                 ?>
               </td>
@@ -274,7 +238,13 @@ function wpsa_render_license_panel_ui() {
 
           <tr valign="top">
             <th scope="row"><?php esc_html_e( 'Expiration Date','speed-analyzer' );?></th>
-            <td><?php echo esc_html( wpsa_get_license_expiration_date() );?></td>
+            <td><?php
+              if ( '' !== $expires_at ) {
+                  echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $expires_at ) ) );
+              } else {
+                  esc_html_e( 'No expiry', 'speed-analyzer' );
+              }
+            ?></td>
           </tr>
         </table>
 
@@ -291,4 +261,31 @@ function wpsa_render_license_panel_ui() {
     </div><!-- .wrap -->
 
     <?php
+}
+
+/**
+ * D16: a site beyond its licence's cap must be told why, not silently
+ * blocked. Pure function so the mutation check (AC-P14) can exercise it
+ * directly — no WordPress globals, no output.
+ *
+ * @param array $quota The array returned by wpsa_check_quota().
+ * @return string The finished notice sentence, or '' when the site is not over cap.
+ */
+function wpsa_license_over_cap_notice( array $quota ) {
+    $sites = isset( $quota['sites'] ) && is_array( $quota['sites'] ) ? $quota['sites'] : array();
+
+    if ( empty( $quota['allowed'] ) && ! empty( $sites ) && empty( $sites['active'] )
+         && isset( $sites['used'], $sites['max'] ) && $sites['used'] >= $sites['max'] && $sites['max'] > 0 ) {
+        return sprintf(
+            /* translators: %d: number of sites the plan allows */
+            _n(
+                'This licence is already in use on its %d allowed site. Deactivate it on another site, or upgrade to run more.',
+                'This licence is already in use on its %d allowed sites. Deactivate it on another site, or upgrade to run more.',
+                (int) $sites['max'], 'speed-analyzer'
+            ),
+            (int) $sites['max']
+        );
+    }
+
+    return '';
 }

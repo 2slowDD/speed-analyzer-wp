@@ -5,7 +5,7 @@ Tags: speed test, pagespeed insights, core web vitals, performance audit, ttfb
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 1.19.0
+Stable tag: 1.19.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -51,7 +51,7 @@ Official plugin homepage:
 
 = Free and paid usage limits =
 
-The free tier includes up to 10 tests per day and one PDF report per day. Higher limits are available through Pro, Business, and Agency plans. Your current tier and remaining usage are shown under **Speed Analyzer > License**.
+The free tier includes up to 10 tests per day and one PDF report per day. Higher limits are available through yearly Pro, Business, and Agency plans. Your current tier and remaining usage are shown under **Speed Analyzer > License**.
 
 View current limits and pricing:
 [https://wpservice.pro/our-products/speed-analyzer-wp-plugin/#licenses](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/#licenses)
@@ -75,7 +75,6 @@ The hosted service is used for:
 * Measuring TTFB from a Cloudflare edge location
 * Fetching page asset and PageSpeed data
 * Proxying PageSpeed requests to Google
-* Enforcing daily usage and PDF-report limits
 
 For TTFB tests, the tested URL is sent to the service. For PageSpeed tests, the tested URL and selected mobile or desktop strategy are sent. The service returns the test data to the plugin. No personal information is intentionally collected, and test results are not stored on the WPservice website.
 
@@ -91,6 +90,25 @@ The hosted WPservice endpoint forwards the tested URL and mobile or desktop stra
 
 Google API Terms of Service:
 [https://developers.google.com/terms](https://developers.google.com/terms)
+
+= WPservice license service =
+
+Endpoint:
+[https://gatekeepersa.dalibord79.workers.dev](https://gatekeepersa.dalibord79.workers.dev)
+
+The license service is used for:
+
+* Activating and deactivating a license key on your site
+* Checking the license's tier, status, and expiry date
+* Checking the daily speed-test and PDF-report allowance for the license
+
+When you activate a license key, the key and your site URL are sent to the service. When you deactivate it, the key and the activation token the service issued at activation are sent. Whenever a speed test (including a scheduled test) or PDF report is run, and when the Speed Analyzer admin screen, including its License panel, is opened, the license key, the operation being checked (speed test or PDF report), today's usage count for that operation, and your site URL are sent. The service returns the license's status, tier, expiry date, remaining daily allowance, and site-usage details to the plugin. Speed Analyzer only contacts this service once you enter a license key; sites without a license key do not contact it.
+
+Privacy policy:
+[https://wpservice.pro/privacy-policy/](https://wpservice.pro/privacy-policy/)
+
+Service terms:
+[https://wpservice.pro/terms-and-conditions/](https://wpservice.pro/terms-and-conditions/)
 
 == Installation ==
 
@@ -154,6 +172,14 @@ Total Blocking Time is a Lighthouse lab metric used in PageSpeed performance tes
 13. Latest performance score and Core Web Vitals shown in the Posts and Pages lists
 
 == Changelog ==
+
+= 1.19.1 =
+* Pro, Business, and Agency plans are now yearly.
+* A temporary license-service outage no longer downgrades a paid site to Free; the License panel now says the service could not be reached.
+* The License panel shows why a license is not active, such as a mistyped key or an expired license.
+* Added a warning 10 days before a license expires, followed by a 7-day grace period at full access.
+* Activation explains why it failed and uses the license's real expiry date; deactivation frees the site's license slot.
+* Sites over their plan's site limit are told why and offered an upgrade.
 
 = 1.19.0 =
 * Total Blocking Time (TBT) replaces INP in lab measurements, matching Google PageSpeed Insights.

@@ -3,6 +3,20 @@
 All notable changes to Speed Analyzer are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.19.1]
+### Added
+- **A license expiry warning on Speed Analyzer screens**, shown 10 days before a license expires. After the expiry date, a 7-day grace period keeps your plan's full limits available while you renew.
+
+### Changed
+- **Pro, Business, and Agency plans are now yearly** instead of monthly.
+
+### Fixed
+- **A temporary outage of the license service no longer downgrades a paid site to Free.** Previously, when the license service was briefly unable to confirm a license, the plugin read that answer as an expired license and dropped the site to Free. The site now keeps its last known plan, and the License panel says the license service could not be reached instead of reporting the license as expired.
+- **The License panel now shows the real reason a license is not active** — a mistyped key, a disabled license, an expired license, or a license that has been paid for but not yet delivered — instead of a generic message.
+- **License activation now explains why it failed**, and records the license's real expiry date instead of setting one a month from activation.
+- **License deactivation now frees the site's license slot**, so the license can be used on another site. If the license service cannot be reached at that moment, the License panel says so.
+- **A site beyond its plan's site limit is now told why** and offered an upgrade.
+
 ## [1.19.0]
 ### Changed
 - **Total Blocking Time replaces INP on every lab measurement**, matching what Google PageSpeed Insights now reports. Affects the score tiles, the Compare tab and its trends chart, the PDF report, the scheduled email and the editor column.

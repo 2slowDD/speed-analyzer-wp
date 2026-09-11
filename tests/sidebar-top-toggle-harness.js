@@ -46,6 +46,8 @@ assert(
 assert(readme.includes(`Stable tag: ${version}`), `readme.txt stable tag should be ${version}`);
 assert(readme.includes(`= ${version} =`), `readme.txt changelog should have a ${version} entry`);
 assert(readmeMd.includes(`Version ${version}`), `README badge should be ${version}`);
+// The alt text above does not cover the badge IMAGE: bumping only the alt would stay green.
+assert(readmeMd.includes(`img.shields.io/badge/Version-${version}-`), `README badge URL should be ${version}`);
 assert(readmeMd.includes(`Version: ${version}`), `README version line should be ${version}`);
 assert(js.includes('admin-scripts.js Version: v0.797'), 'admin-scripts marker should be bumped');
 assert(css.includes('admin-styles.css - Version: v0.746'), 'admin-styles marker should be bumped');

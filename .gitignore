@@ -33,3 +33,15 @@ build/
 # SFTP deploy packages (staging only - never committed)
 /1.18.6/
 /1.19.0/
+
+# SDD working state (ledger, briefs, review packages) — scratch, never published.
+.superpowers/
+
+# Internal working documents: specs, implementation plans, d-reviews, lessons.
+# Untracked across every release to date; this repo is PUBLIC, so an accidental
+# `git add -A` would publish them. Remove this line to start tracking them.
+tasks/
+
+# Cloudflare Worker + wpservice.pro MU-plugin sources.
+# Staged locally, deployed by hand. Not published with the plugin.
+cloudflare/

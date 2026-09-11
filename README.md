@@ -3,11 +3,11 @@
 <p align="center">
   <img alt="CI Passing" src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge">
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-green?style=for-the-badge"></a>
-  <img alt="Version 1.19.0" src="https://img.shields.io/badge/Version-1.19.0-blue?style=for-the-badge">
+  <img alt="Version 1.19.1" src="https://img.shields.io/badge/Version-1.19.1-blue?style=for-the-badge">
 </p>
 
 **In-dashboard website performance auditing for WordPress.**
-Version: 1.19.0 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
+Version: 1.19.1 | Requires: WordPress 5.0+, PHP 7.0+ | License: GPL v3
 
 > Official plugin page: [wpservice.pro/our-products/speed-analyzer-wp-plugin](https://wpservice.pro/our-products/speed-analyzer-wp-plugin/)
 
@@ -49,7 +49,7 @@ Speed Analyzer gives admins a one-click speed audit directly in the WordPress da
 
 ## Usage Tiers
 
-All tiers include full feature access — quotas are enforced remotely by the hosted service.
+All tiers include full feature access — daily limits are applied by the plugin according to your license tier.
 
 | Tier | Tests / Day | PDF Reports / Day |
 |------|------------|-------------------|
@@ -70,7 +70,7 @@ This plugin delegates all testing to remote services. **No personal data is coll
 |---------|----------|-----------|
 | Cloudflare Workers (`globalwpspeed.dalibord79.workers.dev`) | TTFB measurement, PSI proxy | Tested URL + strategy |
 | Google PageSpeed Insights API | LCP/FCP/CLS/TBT diagnostics | Proxied via CF Worker |
-| License service (`wpservice.pro`) | Quota enforcement, license activation | License key + site URL |
+| License service (`gatekeepersa.dalibord79.workers.dev`) | License activation, status and daily allowance | License key, site URL, operation, daily usage count, activation token |
 
 - [Privacy Policy](https://wpservice.pro/privacy-policy)
 - [Terms of Service](https://wpservice.pro/terms-and-conditions/)

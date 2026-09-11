@@ -126,14 +126,38 @@ function wpsa_get_worker_endpoint() {
 }
 
 /**
- * Return the current license tier IF it hasn't expired, otherwise 'free'.
+ * Return the locally saved display tier. Authority is the Gatekeeper for an
+ * active licence (via wpsa_check_quota()) — this function is not consulted on
+ * that path. It is only the locally saved display tier, used for UI and the
+ * local grace / no-key cases.
+ *
+ * With a licence key stored, the saved tier is returned as-is (unaffected by
+ * expiry — the Gatekeeper is authority there). With NO key stored
+ * (deactivated), the saved tier is bounded by the stored expiry: kept until
+ * that date, then 'free'; a saved paid tier with no expiry at all and no key
+ * returns 'free' immediately — nothing was paid for beyond the key itself (D10).
  *
  * @return string  'free'|'premium1'|'premium2'|'premium3'
  */
 function wpsa_get_license_tier() {
-    // Tier/limits authority is Gatekeeper.
-    // This is only the locally saved display tier (used for UI and local grace cases).
-    return (string) get_option( 'wpsa_saved_tier', 'free' );
+    $tier = (string) get_option( 'wpsa_saved_tier', 'free' );
+
+    if ( 'free' === $tier ) {
+        return $tier;
+    }
+
+    if ( '' !== (string) get_option( 'wpsa_license_key', '' ) ) {
+        // A key is stored — Gatekeeper is authority via wpsa_check_quota().
+        return $tier;
+    }
+
+    // No key stored: D10 — honour the customer's remaining paid days, then free.
+    $exp = (string) get_option( 'wpsa_license_expiration', '' );
+    if ( '' === $exp || time() > strtotime( $exp . ' 23:59:59' ) ) {
+        return 'free';
+    }
+
+    return $tier;
 }
 
 
@@ -1296,10 +1320,15 @@ function wpsa_get_daily_remaining() {
 }
     
     /**
-     * Local quota snapshot based on saved tier + expiration (grace period).
+     * Local quota snapshot built from the stored tier, without asking Gatekeeper.
      *
-     * Used when Gatekeeper is unreachable OR when we intentionally keep grace
-     * benefits active (e.g. subscription lapsed but local grace not ended).
+     * wpsa_check_quota() returns it in two cases: when no licence key is stored,
+     * and after an answer from a legacy Gatekeeper (no `v` field), once the
+     * upgrade-only tier comparison has run. The tier comes from
+     * wpsa_get_license_tier(), which bounds a paid tier by the stored expiry only
+     * when no key is stored. It is not the answer when Gatekeeper cannot be
+     * reached: that is wpsa_license_unverified_snapshot(), which limits how long
+     * a paid tier is held.
      *
      * @param string $operation Either 'ttfb' or 'pdf'.
      * @return array {
@@ -1368,108 +1397,168 @@ function wpsa_check_quota( $operation ) {
         ? (int) wpsa_get_pdf_usage()
         : (int) wpsa_get_daily_usage_record()['count'];
 
-    // No key (user deactivated) → allow local grace behavior.
     if ( '' === $license_key ) {
         return wpsa_get_local_quota_snapshot( $operation );
     }
 
     $cache_key = 'wpsa_gk_quota_' . sanitize_key( (string) $operation );
 
-    // We have a key → ask Gatekeeper.
     $url = esc_url_raw( add_query_arg( array(
         'license_key' => $license_key,
         'operation'   => $operation,
         'daily_used'  => $daily_used,
+        'site_url'    => home_url(),
     ), WPSA_GATEKEEPER_URL . '/check' ) );
 
     $response = wp_remote_get( $url, array( 'timeout' => 15 ) );
 
-    // If Gatekeeper fails and we DO have a key, never grant premium via local fallback.
-    // Use cached last-good Gatekeeper response, otherwise conservative "free".
     if ( is_wp_error( $response ) ) {
-    $cached = get_transient( $cache_key );
-    if (
-        is_array( $cached )
-        && isset( $cached['allowed'], $cached['tier'], $cached['limit'], $cached['remaining'] )
-        && (string) $cached['tier'] === 'free'
-    ) {
-        return $cached;
+        return wpsa_license_unverified_snapshot( $operation, $cache_key );
     }
-    return wpsa_get_conservative_quota_snapshot( $operation );
-}
 
     $code = (int) wp_remote_retrieve_response_code( $response );
-    if ( 200 !== $code ) {
-    $cached = get_transient( $cache_key );
-    if (
-        is_array( $cached )
-        && isset( $cached['allowed'], $cached['tier'], $cached['limit'], $cached['remaining'] )
-        && (string) $cached['tier'] === 'free'
-    ) {
-        return $cached;
-    }
-    return wpsa_get_conservative_quota_snapshot( $operation );
-}
-
     $body = json_decode( wp_remote_retrieve_body( $response ), true );
-    if ( ! is_array( $body )
-        || ! isset( $body['allowed'], $body['tier'], $body['limit'], $body['remaining'] )
-    ) {
-        $cached = get_transient( $cache_key );
-        if (
-            is_array( $cached )
-            && isset( $cached['allowed'], $cached['tier'], $cached['limit'], $cached['remaining'] )
-            && (string) $cached['tier'] === 'free'
-        ) {
-            return $cached;
-        }
-        return wpsa_get_conservative_quota_snapshot( $operation );
+
+    if ( ! is_array( $body ) ) {
+        return wpsa_license_unverified_snapshot( $operation, $cache_key );
     }
 
+    // Legacy worker (no `v`): accept an upgrade, NEVER a downgrade, never write the expiry.
+    // Only an HTTP 200 counts; any other code falls through to the status guards below.
+    if ( 200 === $code && ! isset( $body['v'] ) ) {
+        $current = (string) get_option( 'wpsa_saved_tier', 'free' );
+        $incoming = isset( $body['tier'] ) ? (string) $body['tier'] : 'free';
+        if ( wpsa_tier_rank( $incoming ) > wpsa_tier_rank( $current ) ) {
+            update_option( 'wpsa_saved_tier', $incoming, false );
+            $current = $incoming;
+        }
+        return wpsa_get_local_quota_snapshot( $operation );
+    }
+
+    $status = isset( $body['status'] ) ? (string) $body['status'] : 'unverified';
+
+    if ( 503 === $code || 'unverified' === $status ) {
+        return wpsa_license_unverified_snapshot( $operation, $cache_key );
+    }
+
+    if ( 200 !== $code || ( 'ok' !== $status && 'stale' !== $status ) ) {
+        return wpsa_license_unverified_snapshot( $operation, $cache_key );
+    }
+
+    // An answer missing a field the write below reads, or naming a tier this plugin
+    // does not know, proves nothing about the licence: keep what is stored.
+    if ( ! isset( $body['allowed'], $body['tier'], $body['limit'], $body['remaining'] )
+        || ! in_array( $body['tier'], array( 'free', 'premium1', 'premium2', 'premium3' ), true ) ) {
+        return wpsa_license_unverified_snapshot( $operation, $cache_key );
+    }
+
+    // ---- AUTHORITATIVE. This is the ONLY path that may change the stored tier. ----
     $out = array(
-        'allowed'   => (bool) $body['allowed'],
-        'tier'      => (string) $body['tier'],
-        'limit'     => (int) $body['limit'],
-        'remaining' => (int) $body['remaining'],
+        'allowed'    => (bool) $body['allowed'],
+        'tier'       => (string) $body['tier'],
+        'limit'      => (int) $body['limit'],
+        'remaining'  => (int) $body['remaining'],
+        'state'      => isset( $body['state'] ) ? (string) $body['state'] : '',
+        'reason'     => isset( $body['reason'] ) && null !== $body['reason'] ? (string) $body['reason'] : '',
+        'status'     => $status,
+        'expires_at' => isset( $body['expires_at'] ) && null !== $body['expires_at'] ? (string) $body['expires_at'] : '',
+        'days_left'  => isset( $body['days_left'] ) && null !== $body['days_left'] ? (int) $body['days_left'] : null,
+        'sites'      => isset( $body['sites'] ) && is_array( $body['sites'] ) ? $body['sites'] : array(),
     );
 
-    // Cache last-known-good Gatekeeper result briefly to prevent UI flip-flops.
     set_transient( $cache_key, $out, 15 * MINUTE_IN_SECONDS );
 
-    // Keep local tier in sync with Gatekeeper so UI matches reality.
-    if ( isset( $out['tier'] ) && is_string( $out['tier'] ) ) {
-        $incoming = (string) $out['tier'];
-        $current  = (string) get_option( 'wpsa_saved_tier', 'free' );
-
+    $incoming = $out['tier'];
+    $current  = (string) get_option( 'wpsa_saved_tier', 'free' );
     if ( $incoming !== $current ) {
-    
-        // If Gatekeeper confirms a premium tier, remember it as the last known paid tier.
-        // This allows the License panel to show “expired/renew” later, even after saved tier is synced to free.
-        if ( $incoming !== 'free' ) {
+        if ( 'free' !== $incoming ) {
             update_option( 'wpsa_last_paid_tier', $incoming, false );
-            delete_option( 'wpsa_last_paid_downgrade_ts' );
-        } elseif ( $current !== 'free' ) {
-            // Downgrading from paid -> free: remember what it used to be.
+        } elseif ( 'free' !== $current ) {
             update_option( 'wpsa_last_paid_tier', $current, false );
-            update_option( 'wpsa_last_paid_downgrade_ts', time(), false );
         }
-    
         update_option( 'wpsa_saved_tier', $incoming, false );
     }
-    
-    // If Gatekeeper says "free", drop local expiration so local grace doesn't resurrect premium.
-    if ( $incoming === 'free' ) {
-        delete_option( 'wpsa_license_expiration' );
+
+    // The expiry is the server's. A confirmed free/invalid answer carries no
+    // expires_at and must not be allowed to wipe the stored one (that was F2).
+    // A confirmed ACTIVE/GRACE answer with no expires_at means genuinely
+    // perpetual, and there the stored value should be cleared rather than left
+    // to bound the unverified snapshot on a date that no longer applies.
+    if ( '' !== $out['expires_at'] ) {
+        update_option( 'wpsa_license_expiration', $out['expires_at'], false );
+    } elseif ( 'active' === $out['state'] || 'grace' === $out['state'] ) {
+        update_option( 'wpsa_license_expiration', '', false );
     }
-    }
+    update_option( 'wpsa_license_state',      $out['state'], false );
+    update_option( 'wpsa_license_reason',     $out['reason'], false );   // r3 Major 1
+    update_option( 'wpsa_license_status',     $out['status'], false );
+
+    // Anchored to the RECORD's age, not to receipt time, so a run of stale
+    // answers sharing one fetched_at cannot renew the hold (r1 bound fix).
+    $fetched = isset( $body['fetched_at'] ) ? strtotime( (string) $body['fetched_at'] ) : false;
+    update_option( 'wpsa_license_last_verified', $fetched ? (int) $fetched : time(), false );
 
     return $out;
+}
+
+/**
+ * The answer when nothing authoritative is available.
+ *
+ * Holds the last known paid tier, but never past what we already know we paid for:
+ * expiry + grace when an expiry is known, otherwise 14 days from the last verified
+ * record. Writes nothing except the status.
+ *
+ * @param string $operation ttfb|pdf
+ * @param string $cache_key transient key
+ * @return array
+ */
+function wpsa_license_unverified_snapshot( $operation, $cache_key ) {
+    update_option( 'wpsa_license_status', 'unverified', false );
+
+    $cached = get_transient( $cache_key );
+    if ( is_array( $cached ) && isset( $cached['tier'], $cached['limit'], $cached['remaining'] ) ) {
+        $cached['status'] = 'unverified';
+        return $cached;
+    }
+
+    $tier = (string) get_option( 'wpsa_saved_tier', 'free' );
+    if ( 'free' !== $tier ) {
+        $exp = (string) get_option( 'wpsa_license_expiration', '' );
+        if ( '' !== $exp ) {
+            $bound = strtotime( $exp . ' 23:59:59' ) + 7 * DAY_IN_SECONDS;
+        } else {
+            $last  = (int) get_option( 'wpsa_license_last_verified', 0 );
+            $bound = $last > 0 ? $last + 14 * DAY_IN_SECONDS : 0;
+        }
+        if ( time() > $bound ) {
+            $tier = 'free';
+        }
+    }
+
+    $limit_maps = array(
+        'ttfb' => array( 'free' => 10, 'premium1' => 30, 'premium2' => 100, 'premium3' => 700 ),
+        'pdf'  => array( 'free' => 1,  'premium1' => 3,  'premium2' => 10,  'premium3' => 100 ),
+    );
+    $map   = isset( $limit_maps[ $operation ] ) ? $limit_maps[ $operation ] : $limit_maps['ttfb'];
+    $limit = isset( $map[ $tier ] ) ? (int) $map[ $tier ] : (int) $map['free'];
+    $used  = ( 'pdf' === $operation ) ? (int) wpsa_get_pdf_usage() : (int) wpsa_get_daily_usage_record()['count'];
+    $remaining = max( 0, $limit - $used );
+
+    return array(
+        'allowed'   => ( $remaining > 0 ),
+        'tier'      => $tier,
+        'limit'     => $limit,
+        'remaining' => $remaining,
+        'state'     => (string) get_option( 'wpsa_license_state', '' ),
+        'reason'    => (string) get_option( 'wpsa_license_reason', '' ),
+        'status'    => 'unverified',
+    );
 }
 
 
     
     /**
-     * Get the saved expiration date (one-month), or “N/A” for free.
+     * Get the saved expiration date, or “N/A” for free.
      *
      * @return string
      */
@@ -1497,39 +1586,6 @@ function wpsa_get_license_slots_limit( $tier ) {
         'premium3' => 100,
     ];
     return isset( $map[ $tier ] ) ? $map[ $tier ] : 0;
-}
-
-/**
- * Get remaining activation slots for a given tier.
- *
- * This calls Gatekeeper’s `/slots` endpoint, or defaults to the full limit.
- *
- * @param string $tier
- * @return int
- */
-function wpsa_get_license_slots_remaining( $tier ) {
-    $limit = wpsa_get_license_slots_limit( $tier );
-
-    // Attempt to fetch used count from Gatekeeper
-    $key = get_option( 'wpsa_license_key', '' );
-    if ( ! $key || $limit < 1 ) {
-        return 0;
-    }
-
-    $url = esc_url_raw( add_query_arg( [
-        'license_key' => $key,
-    ], WPSA_GATEKEEPER_URL . '/slots' ) );
-    $resp = wp_remote_get( $url, [ 'timeout' => 10 ] );
-    if ( is_wp_error( $resp ) ) {
-        return $limit;
-    }
-    $code = wp_remote_retrieve_response_code( $resp );
-    $data = json_decode( wp_remote_retrieve_body( $resp ), true );
-    if ( 200 !== $code || ! isset( $data['used'], $data['limit'] ) ) {
-        return $limit;
-    }
-
-    return max( 0, intval( $data['limit'] ) - intval( $data['used'] ) );
 }
 
 /**
