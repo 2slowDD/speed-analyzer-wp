@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:     Speed Analyzer
+ * Plugin Name:     Speed Analyzer – Speed Test & Performance Audit
  * Plugin URI:      https://wpservice.pro/our-products/speed-analyzer-wp-plugin/
  * Description:     Detect your website's speed, bottlenecks, and key performance indicators to look for.
  * Version:         1.19.1
