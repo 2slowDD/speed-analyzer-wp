@@ -71,16 +71,33 @@ foreach ( array( 'wpsa_schedule_result_icon' ) as $fn ) {
     eval( 'function ' . $fn . '(' . $m['args'] . ') {' . $m['body'] . "\n}" );
 }
 
-// wpsa_get_local_quota_snapshot() is called on the no-key path only; stub it.
-// Mirrors production includes/helpers.php:1313 exactly: the tier comes from
-// the real (extracted, above) wpsa_get_license_tier() rather than reading
-// wpsa_saved_tier directly, so the D10 expiry-demotion rule is exercised
-// through this stub too instead of bypassed by it (Task B6).
-function wpsa_get_local_quota_snapshot( $operation ) {
-    $tier = wpsa_get_license_tier(); // respects saved tier + expiration
-    $lim  = ( 'pdf' === $operation ) ? 1 : 10;
-    return array( 'allowed' => true, 'tier' => $tier, 'limit' => $lim, 'remaining' => $lim );
-}
+// wpsa_get_local_quota_snapshot() is called on the no-key path. It sits indented in
+// production, so the regex above — which needs the closing brace at column 0 — cannot
+// lift it. Brace-match it instead and run the shipped function: it used to be stubbed
+// here, and a stub that simply lacked a field the licence panel prints is what let the
+// panel show a deactivated paid site as having no expiry. Its two callees,
+// wpsa_get_pdf_usage() and wpsa_get_daily_usage_record(), are stubbed by the harness.
+$lift_braced = function ( $src, $fn ) {
+    $start = strpos( $src, 'function ' . $fn );
+    if ( false === $start ) {
+        fwrite( STDERR, "Could not find $fn in includes/helpers.php\n" );
+        exit( 1 );
+    }
+    $depth = 0;
+    for ( $i = strpos( $src, '{', $start ); $i < strlen( $src ); $i++ ) {
+        if ( '{' === $src[ $i ] ) {
+            $depth++;
+        } elseif ( '}' === $src[ $i ] ) {
+            $depth--;
+            if ( 0 === $depth ) {
+                return substr( $src, $start, $i + 1 - $start );
+            }
+        }
+    }
+    fwrite( STDERR, "Unbalanced braces extracting $fn\n" );
+    exit( 1 );
+};
+eval( $lift_braced( $source, 'wpsa_get_local_quota_snapshot' ) );
 
 // wpsa_tier_rank() is called by the legacy (no `v`) branch. It is declared
 // inside `if ( ! function_exists(...) )` in production with the closing

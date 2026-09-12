@@ -76,6 +76,15 @@ function wpsa_render_license_panel_ui() {
             __( '%1$s — expires in %2$d days', 'speed-analyzer' ),
             $label, (int) $days
         );
+    } elseif ( '' === (string) $option_key && 'free' !== $tier ) {
+        // Deactivated, with paid days still running (D10): the licence is no longer on
+        // this site, but the plan holds until the stored date, which the Expiration
+        // Date row below now shows.
+        $status_text = sprintf(
+            /* translators: %s: plan name */
+            __( '%s — deactivated, still valid', 'speed-analyzer' ),
+            $label
+        );
     } else {
         $status_text = $label;
     }

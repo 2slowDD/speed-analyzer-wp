@@ -1336,6 +1336,7 @@ function wpsa_get_daily_remaining() {
      *     @type string $tier
      *     @type int    $limit
      *     @type int    $remaining
+     *     @type string $expires_at The date the paid days run to, or '' on the free tier.
      * }
      */
     function wpsa_get_local_quota_snapshot( $operation ) {
@@ -1362,9 +1363,12 @@ function wpsa_get_daily_remaining() {
             'tier'      => $tier,
             'limit'     => $limit,
             'remaining' => $remaining,
+            // The licence panel prints its Expiration Date row from this answer, so an
+            // answer that honours stored paid days must carry the date they run to.
+            'expires_at' => ( 'free' !== $tier ) ? (string) get_option( 'wpsa_license_expiration', '' ) : '',
         );
     }
-    
+
     function wpsa_get_conservative_quota_snapshot( $operation ) {
     $tier = 'free';
 
@@ -1555,6 +1559,9 @@ function wpsa_license_unverified_snapshot( $operation, $cache_key ) {
         'remaining' => $remaining,
         'state'     => (string) get_option( 'wpsa_license_state', '' ),
         'status'    => 'unverified',
+        // Same reason as the local snapshot: without the date the panel shows a paid
+        // licence as having no expiry while the service is unreachable.
+        'expires_at' => ( 'free' !== $tier ) ? (string) get_option( 'wpsa_license_expiration', '' ) : '',
     );
 }
 

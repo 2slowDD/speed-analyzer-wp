@@ -39,7 +39,7 @@ date_default_timezone_set( 'UTC' ); // WordPress runs PHP in UTC; the date check
 //
 // ▲ WHEN YOU LEGITIMATELY ADD OR REMOVE AN ASSERTION, UPDATE THIS NUMBER. ▲
 // It is the only place the expected count is written down.
-define( 'FR_EXPECTED_CHECKS', 250 );
+define( 'FR_EXPECTED_CHECKS', 258 );
 
 $GLOBALS['fr_reached_end'] = false;
 register_shutdown_function( function () {
@@ -317,12 +317,20 @@ reset_state( array( 'wpsa_license_key' => '', 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => gmdate( 'Y-m-d', time() + 5 * DAY_IN_SECONDS ) ) );
 ok( 'AC-D10-1 tier() keeps paid tier before expiry', wpsa_get_license_tier(), 'premium3' );
 ok( 'AC-D10-1 snapshot() inherits it', wpsa_get_local_quota_snapshot( 'ttfb' )['tier'], 'premium3' );
+// The licence panel prints its Expiration Date row from this answer alone, so the
+// answer must carry the date those paid days run to; without it a deactivated site
+// reads "No expiry" while it is still on a paid plan.
+ok( 'AC-D10-1 snapshot() carries the date the paid days run to',
+    wpsa_get_local_quota_snapshot( 'ttfb' )['expires_at'] ?? null,
+    gmdate( 'Y-m-d', time() + 5 * DAY_IN_SECONDS ) );
 
 // AC-D10-2 no key, expiry passed -> free
 reset_state( array( 'wpsa_license_key' => '', 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => gmdate( 'Y-m-d', time() - 5 * DAY_IN_SECONDS ) ) );
 ok( 'AC-D10-2 tier() falls to free past expiry', wpsa_get_license_tier(), 'free' );
 ok( 'AC-D10-2 snapshot() inherits it', wpsa_get_local_quota_snapshot( 'ttfb' )['tier'], 'free' );
+ok( 'AC-D10-2 snapshot() reports no date once the paid days have run out',
+    wpsa_get_local_quota_snapshot( 'ttfb' )['expires_at'] ?? null, '' );
 
 // AC-D10-3 no key, no expiry stored at all (perpetual key, deactivated) ->
 // free immediately; nothing was paid for beyond the key itself.
@@ -330,6 +338,8 @@ reset_state( array( 'wpsa_license_key' => '', 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => '' ) );
 ok( 'AC-D10-3 tier() no-expiry perpetual falls to free', wpsa_get_license_tier(), 'free' );
 ok( 'AC-D10-3 snapshot() inherits it', wpsa_get_local_quota_snapshot( 'ttfb' )['tier'], 'free' );
+ok( 'AC-D10-3 snapshot() reports no date when none was stored',
+    wpsa_get_local_quota_snapshot( 'ttfb' )['expires_at'] ?? null, '' );
 
 // AC-D10-4 (Ruling 1, the load-bearing guard) — a STORED KEY with no expiry
 // must still return the paid tier. This is exactly the post-upgrade state
@@ -339,6 +349,19 @@ ok( 'AC-D10-3 snapshot() inherits it', wpsa_get_local_quota_snapshot( 'ttfb' )['
 reset_state( array( 'wpsa_license_key' => 'PREKEY', 'wpsa_saved_tier' => 'premium3',
                     'wpsa_license_expiration' => '' ) );
 ok( 'AC-D10-4 key present + no expiry still returns paid tier', wpsa_get_license_tier(), 'premium3' );
+
+// The answer built when the licence service cannot be reached and nothing is cached
+// reaches the same panel row, so it carries the date too.
+$fr_unv_exp = gmdate( 'Y-m-d', time() + 200 * DAY_IN_SECONDS );
+reset_state( array( 'wpsa_license_key' => 'PREKEY', 'wpsa_saved_tier' => 'premium1',
+                    'wpsa_license_expiration' => $fr_unv_exp ) );
+$fr_unv = wpsa_license_unverified_snapshot( 'ttfb', 'wpsa_gk_quota_ttfb' );
+ok( 'Unreachable service, nothing cached: the paid tier and its date',
+    array( $fr_unv['tier'], $fr_unv['expires_at'] ?? null ), array( 'premium1', $fr_unv_exp ) );
+reset_state( array( 'wpsa_license_key' => 'PREKEY', 'wpsa_saved_tier' => 'free',
+                    'wpsa_license_expiration' => '' ) );
+ok( 'Unreachable service on a free site: no date',
+    wpsa_license_unverified_snapshot( 'ttfb', 'wpsa_gk_quota_ttfb' )['expires_at'] ?? null, '' );
 
 // AC-P8 (D14) the duplicate sync block must be GONE from the admin path.
 // Asserted by source inspection because the block is inline in a render
@@ -1153,12 +1176,11 @@ ok( 'AC-B6F-M6 activation never re-fabricates a +1 month expiry',
 
 // M5 — wpsa_get_local_quota_snapshot() in PRODUCTION must derive its tier
 // through wpsa_get_license_tier(), not by reading wpsa_saved_tier directly.
-// The AC-D10-*/"snapshot() inherits it" assertions above exercise the
-// *harness stub's* delegation (tests/_license-state-subject.php) — this pins
-// the production source line itself, since the stub could silently drift from
-// production without any functional test noticing. The function is not lifted
-// and run here because it is not extractable by the subject file's regex and
-// pulls in a wider stub surface than it is worth; it stays source-inspection,
+// The AC-D10-* assertions above now run the SHIPPED function: the subject file
+// brace-matches it out of includes/helpers.php instead of stubbing it. These
+// source pins stay as a second line of defence on the two properties that a
+// passing functional test could still leave ambiguous — which helper the tier
+// comes from, and that the option is not read directly — and they cost nothing,
 // but on a slice whose two anchors are now exactly-once and order-checked,
 // and read through fr_contains() so the "does not read" assertion reddens
 // instead of passing vacuously if that slice ever comes back empty.
@@ -1587,8 +1609,11 @@ foreach ( array(
 $fr_r = isset( $fr_fx_cases['active_200_days'] ) ? fr_render_both( $fr_fx_cases['active_200_days'], $fr_paying ) : array();
 ok( 'Panel and notice, active_200_days: the plan name alone, and no notice',
     array( fr_contains( $fr_r['panel'] ?? null, 'AGENCY' ), fr_contains( $fr_r['panel'] ?? null, 'expires in' ),
+           // A site with its key in place is never "deactivated", whatever the panel
+           // says about the paid days that outlive a deactivation.
+           fr_contains( $fr_r['panel'] ?? null, 'deactivated' ),
            $fr_r['notice'] ?? null, $fr_r['raised'] ?? null ),
-    array( true, false, '', array() ) );
+    array( true, false, false, '', array() ) );
 
 // Every keyed state the service sends, rendered on both real surfaces. The panel
 // prints its line through wp_kses(), beside the warning icon; the notice escapes
@@ -1617,6 +1642,38 @@ ok( 'Panel and notice, active_perpetual: the plan name alone, and no notice',
     array( fr_contains( $fr_r['panel'] ?? null, 'AGENCY' ), fr_contains( $fr_r['panel'] ?? null, 'expires in' ),
            $fr_r['notice'] ?? null, $fr_r['raised'] ?? null ),
     array( true, false, '', array() ) );
+
+// Deactivated, with paid days still running (D10): the panel names the plan, says the
+// licence is deactivated but still valid, and shows the date those days run to.
+$fr_deact_exp = gmdate( 'Y-m-d', time() + 200 * DAY_IN_SECONDS );
+reset_state( array( 'wpsa_license_key' => '', 'wpsa_saved_tier' => 'premium1',
+                    'wpsa_license_state' => 'free', 'wpsa_license_expiration' => $fr_deact_exp ) );
+$fr_dp = fr_capture( 'wpsa_render_license_panel_ui' );
+ok( 'Panel, deactivated with paid days left: PRO, still valid, and the date',
+    array( fr_contains( $fr_dp['html'], 'PRO — deactivated, still valid' ),
+           fr_contains( $fr_dp['html'], $fr_deact_exp ),
+           fr_contains( $fr_dp['html'], 'No expiry' ),
+           $fr_dp['raised'] ),
+    array( true, true, false, array() ) );
+
+// A paid site whose licence service is unreachable, with nothing cached, must see its
+// date too — the same missing field showed "No expiry" there.
+reset_state( array( 'wpsa_license_key' => 'PREKEY', 'wpsa_saved_tier' => 'premium3',
+                    'wpsa_license_state' => 'active', 'wpsa_license_expiration' => $fr_deact_exp ) );
+$GLOBALS['http'] = array( 'code' => 503, 'body' => body( array( 'status' => 'unverified' ) ), 'error' => false );
+$fr_up = fr_capture( 'wpsa_render_license_panel_ui' );
+ok( 'Panel, paid site with the service unreachable: its date, and not "No expiry"',
+    array( fr_contains( $fr_up['html'], $fr_deact_exp ), fr_contains( $fr_up['html'], 'No expiry' ), $fr_up['raised'] ),
+    array( true, false, array() ) );
+
+// A site that never had a licence — or whose paid days have run out — is plain Free.
+// The deactivated line belongs only to a plan that is still running.
+reset_state( array( 'wpsa_license_key' => '', 'wpsa_saved_tier' => 'free',
+                    'wpsa_license_state' => 'free', 'wpsa_license_expiration' => '' ) );
+$fr_fp = fr_capture( 'wpsa_render_license_panel_ui' );
+ok( 'Panel, free site with no key: no deactivated line',
+    array( fr_contains( $fr_fp['html'], 'deactivated' ), $fr_fp['raised'] ),
+    array( false, array() ) );
 // A stored state the panel does not name (a pre-v4 'invalid', or anything unexpected),
 // reached with the service unreachable and nothing cached: the plan name, no notice.
 foreach ( array( 'invalid', 'something-else' ) as $fr_state ) {
