@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - **Pro, Business, and Agency plans are now yearly** instead of monthly.
+- **The Plugins screen now lists the plugin as "Speed Analyzer – Speed Test & Performance Audit"**, matching its name on WordPress.org.
 
 ### Fixed
 - **A temporary outage of the license service no longer downgrades a paid site to Free.** Previously, when the license service was briefly unable to confirm a license, the plugin read that answer as an expired license and dropped the site to Free. The site now keeps its last known plan, and the License panel says the license service could not be reached instead of reporting the license as expired.
@@ -16,6 +17,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **License activation now explains why it failed**, and records the license's real expiry date instead of setting one a month from activation.
 - **License deactivation now frees the site's license slot**, so the license can be used on another site. If the license service cannot be reached at that moment, the License panel says so.
 - **A site beyond its plan's site limit is now told why** and offered an upgrade.
+- **Clicking Run twice no longer starts a second test.** The Run button is disabled as soon as a test starts, so a second click or Enter cannot spend another test from your daily limit or add an unnumbered result to the log.
+- **Resolved a Plugin Check finding** about direct file access in one plugin file.
 
 ## [1.19.0]
 ### Changed

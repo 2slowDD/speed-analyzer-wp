@@ -8,6 +8,9 @@
 * License activation now explains why it failed, and records the license's real expiry date instead of setting one a month from activation.
 * License deactivation now frees the site's license slot, and says so if the license service could not be reached.
 * Sites beyond their plan's site limit are now told why and offered an upgrade.
+* Clicking Run twice no longer starts a second test: the Run button is disabled as soon as a test starts.
+* The Plugins screen lists the plugin as "Speed Analyzer – Speed Test & Performance Audit".
+* Resolved a Plugin Check finding about direct file access.
 
 = 1.19.0 =
 * Total Blocking Time (TBT) replaces INP in all lab measurements, matching what Google PageSpeed Insights now reports.

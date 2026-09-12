@@ -182,6 +182,9 @@ Total Blocking Time is a Lighthouse lab metric used in PageSpeed performance tes
 * Added a warning 10 days before a license expires, followed by a 7-day grace period at full access.
 * Activation explains why it failed and uses the license's real expiry date; deactivation frees the site's license slot.
 * Sites over their plan's site limit are told why and offered an upgrade.
+* Clicking Run twice no longer starts a second test.
+* The Plugins screen lists the plugin as "Speed Analyzer – Speed Test & Performance Audit".
+* Resolved a Plugin Check finding about direct file access.
 
 = 1.19.0 =
 * Total Blocking Time (TBT) replaces INP in lab measurements, matching Google PageSpeed Insights.
