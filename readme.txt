@@ -3,7 +3,7 @@ Contributors: dalibord
 Donate link: https://wpservice.pro/donate/
 Tags: speed test, pagespeed insights, core web vitals, performance audit, ttfb
 Requires at least: 5.0
-Tested up to: 7.1
+Tested up to: 7.1.2
 Requires PHP: 7.0
 Stable tag: 1.19.1
 License: GPLv3 or later
